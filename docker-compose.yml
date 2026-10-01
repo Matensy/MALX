@@ -1,0 +1,29 @@
+# docker compose up --build   →   http://127.0.0.1:8000
+services:
+  malx:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: malx:local
+    ports:
+      - "127.0.0.1:8000:8000"     # local workbench: never expose on all interfaces
+    environment:
+      MALX_LIMITS__MAX_UPLOAD_SIZE: 500MB
+      MALX_LIMITS__MAX_ANALYSIS_TIME: 10m
+      MALX_WORKERS__MAX_CONCURRENT_ANALYSES: "2"
+    volumes:
+      - malx-storage:/data/storage
+      # Optional: local OSV advisory database (see rules/advisories/README.md)
+      # - ./rules/advisories:/app/rules/advisories:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    mem_limit: 6g
+    restart: unless-stopped
+
+volumes:
+  malx-storage:

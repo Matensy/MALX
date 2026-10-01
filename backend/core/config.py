@@ -17,7 +17,11 @@ import yaml
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_PKG_ROOT = Path(__file__).resolve().parents[2]
+# MALX_HOME points at the directory holding rules/, malx.yaml and frontend/dist (e.g. /app in Docker).
+# In a source checkout it defaults to the repository root.
+PROJECT_ROOT = (Path(os.environ["MALX_HOME"]).resolve() if os.environ.get("MALX_HOME")
+                else _PKG_ROOT if (_PKG_ROOT / "rules").is_dir() else Path.cwd())
 
 _SIZE_UNITS = {
     "": 1, "b": 1,
