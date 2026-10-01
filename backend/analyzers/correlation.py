@@ -54,18 +54,37 @@ def _down(sev: str) -> str:
     return SEVERITY_ORDER[max(1, _sev(sev) - 1)]
 
 
+PURE_CONTAINERS = {"zip", "tar", "gzip", "bzip2", "xz", "7z"}
+
+
 def _units(ctx: AnalysisContext) -> list[tuple[str, set[str]]]:
-    """A unit is a submitted sample plus everything extracted from it."""
+    """Correlation units.
+
+    A unit is an artifact plus the content that belongs to it (a document and its
+    embedded objects/macros, an APK and its DEX, a script and its decoded payloads).
+    Members of *pure* containers (ZIP/TAR/7z/gzip...) start their own unit: unrelated
+    files that merely share an archive must not be correlated with each other.
+    """
+    def is_unit_root(a) -> bool:
+        if a.parent_id is None:
+            return True
+        parent = ctx.by_id.get(a.parent_id)
+        return parent is not None and parent.detected_type in PURE_CONTAINERS
+
     units = []
-    for root in ctx.roots:
+    for root in ctx.artifacts:
+        if not is_unit_root(root):
+            continue
         ids = {root.id}
-        stack = [root.id]
-        while stack:
-            cur = ctx.by_id[stack.pop()]
-            for c in cur.children:
-                if c not in ids:
-                    ids.add(c)
-                    stack.append(c)
+        if root.detected_type not in PURE_CONTAINERS:
+            stack = [root.id]
+            while stack:
+                cur = ctx.by_id[stack.pop()]
+                for c in cur.children:
+                    child = ctx.by_id.get(c)
+                    if c not in ids and child is not None and not is_unit_root(child):
+                        ids.add(c)
+                        stack.append(c)
         units.append((root.id, ids))
     return units
 
@@ -297,8 +316,8 @@ def classify(ctx: AnalysisContext, findings: list[dict[str, Any]]) -> tuple[str,
             else "Several distinct high-severity behaviours were correlated")
     if moderate_high or any(f["strength"] == "strong" for f in correlated):
         return Classification.HIGHLY_SUSPICIOUS.value, "Correlated high-severity behaviour with moderate support"
-    if correlated or any(f["kind"] == "indicator" and _sev(f["severity"]) >= 2 for f in findings) \
-            or any(f["kind"] == "appsec" and _sev(f["severity"]) >= 3 for f in findings):
+    detection = [e for e in ctx.evidence if e.source in ("heuristic_engine", "yara_engine") and e.severity.rank >= 2]
+    if correlated or any(f["kind"] == "indicator" and _sev(f["severity"]) >= 2 for f in findings) or detection:
         return Classification.SUSPICIOUS.value, "Suspicious indicators present but not strongly corroborated"
     identified = any(a.detected_type not in ("unknown", "empty") for a in ctx.artifacts)
     if not identified and not ctx.evidence:

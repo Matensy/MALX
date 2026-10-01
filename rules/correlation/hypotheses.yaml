@@ -129,7 +129,7 @@ rules:
     min_sources: 1
     requires:
       - {rules: [HEUR-FILE-001, HEUR-FILE-002, HEUR-FILE-003, HEUR-FILE-004]}
-      - {categories: [execution, network, packing, persistence, injection], min_severity: low}
+      - {categories: [execution, network, packing, persistence, injection], min_severity: medium}
     supporting:
       - {types: [archive_encrypted]}
     what: "An executable is disguised as a document (extension tricks, RTLO, lure names) and carries capability indicators."

@@ -245,8 +245,13 @@ def test_security_headers_and_no_sample_download(client):
 
 
 def test_invalid_ids_and_traversal_in_api(client):
-    for bad in ("../../etc/passwd", "%2e%2e%2f%2e%2e%2fetc", "a" * 32, "zzzz"):
+    for bad in ("%2e%2e%2f%2e%2e%2fetc", "a" * 32, "zzzz", "..%2f..%2fetc%2fpasswd"):
         assert client.get(f"/api/analyses/{bad}").status_code == 404
+    # Paths that normalise outside /api fall back to the SPA (or 404) — never to the filesystem.
+    for path in ("/api/analyses/../../etc/passwd", "/../../../../etc/passwd", "/%2e%2e/%2e%2e/etc/passwd", "/assets/../../../etc/passwd"):
+        r = client.get(path)
+        assert b"root:" not in r.content
+        assert r.status_code in (200, 404)
 
 
 def test_delete_purges_storage(client):
