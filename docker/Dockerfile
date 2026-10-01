@@ -12,7 +12,9 @@ RUN npm run build
 FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     MALX_HOME=/app MALX_STORAGE_DIR=/data/storage
-RUN apt-get update && apt-get install -y --no-install-recommends binutils && rm -rf /var/lib/apt/lists/* \
+# binutils provides objdump/readelf/strings for the optional tool integrations.
+ARG WITH_BINUTILS=1
+RUN if [ "$WITH_BINUTILS" = "1" ]; then apt-get update && apt-get install -y --no-install-recommends binutils && rm -rf /var/lib/apt/lists/*; fi \
  && useradd --system --uid 10001 --home /app --shell /usr/sbin/nologin malx
 WORKDIR /app
 COPY pyproject.toml README.md malx.yaml ./
