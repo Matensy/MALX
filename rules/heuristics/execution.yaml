@@ -1,0 +1,130 @@
+# Process / command execution heuristics.
+# Condition reference: docs/rules.md. No rule here is a verdict on its own.
+rules:
+  - id: HEUR-EXEC-001
+    name: Encoded or hidden PowerShell invocation
+    category: execution
+    severity: high
+    confidence: 0.75
+    reliability: high
+    conditions:
+      any:
+        - string_tags_any: [powershell_encoded]
+        - all:
+            - string_tags_any: [powershell]
+            - string_tags_any: [powershell_stealth_flags]
+    explanation: "The artifact launches PowerShell with an encoded command and/or hidden-window/bypass flags, a pattern used to hide what is executed."
+    legitimate: "Some management agents and installers use -EncodedCommand to avoid quoting problems."
+    mitre: [T1059.001, T1027]
+
+  - id: HEUR-EXEC-002
+    name: PowerShell download cradle
+    category: execution
+    severity: high
+    confidence: 0.8
+    reliability: high
+    conditions:
+      string_tags_any: [powershell_download_cradle]
+    explanation: "Code downloads content and executes it in memory (IEX + WebClient/Invoke-WebRequest)."
+    legitimate: "Bootstrap installers (e.g. package managers) use the same one-liner pattern."
+    mitre: [T1059.001, T1105]
+
+  - id: HEUR-EXEC-003
+    name: Command shell invocation from a binary
+    category: execution
+    severity: low
+    confidence: 0.45
+    applies_to: [pe, elf, macho, dex, jar]
+    conditions:
+      all:
+        - string_tags_any: [cmd_exec]
+        - imports_any: [CreateProcessA, CreateProcessW, WinExec, ShellExecuteA, ShellExecuteW, ShellExecuteExW, system, popen, execve]
+    explanation: "The binary embeds a 'cmd /c' command line and imports process-creation APIs."
+    legitimate: "Launchers and installers routinely run shell commands."
+    mitre: [T1059.003]
+
+  - id: HEUR-EXEC-004
+    name: System binary proxy execution reference
+    category: execution
+    severity: medium
+    confidence: 0.55
+    conditions:
+      all:
+        - string_tags_any: [lolbin_proxy_exec]
+        - any:
+            - string_tags_any: [cmd_exec, powershell]
+            - ioc_any: [url]
+            - imports_any: [CreateProcessA, CreateProcessW, ShellExecuteA, ShellExecuteW, ShellExecuteExW, WinExec]
+            - file_type: [script, lnk, hta]
+    explanation: "References to rundll32/regsvr32/mshta/wscript-style binaries combined with execution context — these signed binaries are abused to proxy execution of payloads."
+    legitimate: "Installers register COM components with regsvr32 and launch rundll32 entry points."
+    mitre: [T1218.011, T1218.010, T1218.005]
+
+  - id: HEUR-EXEC-005
+    name: WMI-based process creation
+    category: execution
+    severity: medium
+    confidence: 0.6
+    conditions:
+      string_tags_any: [wmi_exec]
+    explanation: "WMI Win32_Process.Create (or wmic process call create) launches processes outside the normal parent/child chain."
+    legitimate: "Systems management tooling uses WMI extensively."
+    mitre: [T1047]
+
+  - id: HEUR-EXEC-006
+    name: Built-in tool used as downloader
+    category: network
+    severity: high
+    confidence: 0.75
+    conditions:
+      string_tags_any: [lolbin_download]
+    explanation: "certutil/bitsadmin/curl/wget are invoked to download or decode files."
+    legitimate: "Administrators script downloads with curl/wget; certutil decoding is rarely legitimate in distributed software."
+    mitre: [T1105, T1140]
+
+  - id: HEUR-EXEC-007
+    name: Script interpreter with execution primitives
+    category: execution
+    severity: medium
+    confidence: 0.55
+    applies_to: [script]
+    conditions:
+      at_least:
+        n: 2
+        of:
+          - strings_any: ["wscript.shell", "shell.application", "createobject(\"wscript", ".run(", ".exec("]
+          - strings_any: ["eval(", "execute(", "executeglobal", "invoke-expression", "iex(", "iex "]
+          - strings_any: ["frombase64string", "atob(", "base64.b64decode", "decodebase64"]
+          - string_tags_any: [obfuscation_functions]
+    explanation: "The script combines command execution with dynamic evaluation or decoding."
+    legitimate: "Admin scripts and build tooling execute commands; dynamic eval of decoded data is less common."
+    mitre: [T1059]
+
+  - id: HEUR-EXEC-008
+    name: Native API dynamic resolution
+    category: packing
+    severity: low
+    confidence: 0.45
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_all: [GetProcAddress]
+        - imports_any: [LoadLibraryA, LoadLibraryW, LoadLibraryExA, LoadLibraryExW, LdrLoadDll]
+        - string_tags_count: {any: [api_name_unimported], min: 8}
+    explanation: "Many API names appear as strings but are not imported — they are resolved at runtime, hiding capabilities from the import table."
+    legitimate: "Plugins and code supporting optional OS features resolve APIs dynamically."
+    mitre: [T1106, T1027]
+
+  - id: HEUR-EXEC-009
+    name: Python script with execution and network primitives
+    category: execution
+    severity: medium
+    confidence: 0.5
+    applies_to: [script]
+    conditions:
+      all:
+        - strings_any: ["import subprocess", "os.system(", "subprocess.popen", "pty.spawn", "exec("]
+        - strings_any: ["import socket", "socket.socket(", "urllib.request", "requests.get(", "requests.post("]
+    explanation: "Script combines command execution with network communication (remote-control pattern)."
+    legitimate: "Automation and deployment scripts often do both."
+    mitre: [T1059.006]

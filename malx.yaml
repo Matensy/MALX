@@ -1,0 +1,43 @@
+# MALX configuration. Every value can be overridden with an environment variable
+# prefixed with MALX_ (nested keys use "__", e.g. MALX_LIMITS__MAX_UPLOAD_SIZE=100MB).
+# A different file can be selected with MALX_CONFIG=/path/to/file.yaml.
+
+server:
+  host: 127.0.0.1          # MALX is a local workbench: never bind to 0.0.0.0 unless you know why
+  port: 8000
+  allowed_hosts: ["127.0.0.1", "localhost"]
+
+storage_dir: storage
+rules_dir: rules
+database_url: ""           # empty = sqlite:///<storage_dir>/malx.db
+
+limits:
+  max_upload_size: 500MB
+  max_files_per_upload: 50
+  max_archive_size: 1GB
+  max_files_per_archive: 10000
+  max_archive_depth: 10
+  max_extracted_size: 2GB
+  max_entry_size: 1GB
+  max_compression_ratio: 250
+  max_total_artifacts: 10000
+  max_analysis_time: 10m
+  max_memory_per_worker: 2GB
+  max_filename_length: 255
+  max_deep_scan_size: 256MB
+  max_strings_per_artifact: 5000
+  max_fuzzy_hash_size: 64MB
+  max_reverse_functions: 400
+
+workers:
+  max_concurrent_analyses: 2
+  retain_extracted: true
+
+integrations:
+  # Local reverse-engineering tools (capa, FLOSS, radare2, Ghidra...) are used only when
+  # installed AND enabled here. They analyze files statically and never execute samples.
+  local_tools_enabled: true
+  tool_timeout: 120s
+  ghidra_home: ""
+  # External intelligence (online services) is OFF. The core never needs the internet.
+  external_enabled: false

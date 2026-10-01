@@ -1,0 +1,121 @@
+# Source-code weakness patterns (line-based, static). They flag code that *may* be
+# vulnerable and needs review — data flow is not proven by a regex.
+# languages: python, javascript, typescript, java, kotlin, csharp, go, php, ruby, c, cpp, rust, any
+rules:
+  # ---------------------------------------------------------------- command execution
+  - {id: CODE-CMD-001, kind: code, title: "Shell command execution with shell=True", languages: [python], severity: high, cwe: CWE-78, category: command_execution,
+     pattern: 'subprocess\.(run|call|Popen|check_output|check_call)\([^)]*shell\s*=\s*True',
+     description: "Commands run through a shell; any user-controlled part enables command injection.", recommendation: "Pass an argument list with shell=False and validate inputs."}
+  - {id: CODE-CMD-002, kind: code, title: "os.system / os.popen call", languages: [python], severity: medium, cwe: CWE-78, category: command_execution,
+     pattern: '\bos\.(system|popen)\s*\(', description: "Executes a shell command.", recommendation: "Use subprocess with an argument list."}
+  - {id: CODE-CMD-003, kind: code, title: "child_process exec with dynamic input", languages: [javascript, typescript], severity: high, cwe: CWE-78, category: command_execution,
+     pattern: '\b(exec|execSync)\s*\(\s*(`[^`]*\$\{|[^)''"`]*\+|req\.|request\.)', description: "Shell command built from dynamic data.", recommendation: "Use execFile/spawn with argument arrays; never interpolate request data."}
+  - {id: CODE-CMD-004, kind: code, title: "Runtime.exec / ProcessBuilder with concatenation", languages: [java, kotlin], severity: high, cwe: CWE-78, category: command_execution,
+     pattern: '(Runtime\.getRuntime\(\)\.exec|new\s+ProcessBuilder)\s*\([^)]*\+', description: "Process started with a concatenated command line.", recommendation: "Use fixed argument arrays and allow-lists."}
+  - {id: CODE-CMD-005, kind: code, title: "PHP shell execution function", languages: [php], severity: high, cwe: CWE-78, category: command_execution,
+     pattern: '\b(shell_exec|system|passthru|exec|popen|proc_open)\s*\(\s*[^)]*\$', description: "Shell function called with a variable.", recommendation: "Avoid shell calls or escape with escapeshellarg and allow-lists."}
+  - {id: CODE-CMD-006, kind: code, title: "Go exec.Command via shell", languages: [go], severity: medium, cwe: CWE-78, category: command_execution,
+     pattern: 'exec\.Command\(\s*"(sh|bash|cmd|/bin/sh|cmd\.exe)"\s*,\s*"(-c|/c)"', description: "Command executed through a shell interpreter.", recommendation: "Invoke binaries directly with separate arguments."}
+  - {id: CODE-CMD-007, kind: code, title: "C system()/popen() call", languages: [c, cpp], severity: medium, cwe: CWE-78, category: command_execution,
+     pattern: '\b(system|popen)\s*\(', description: "Shell execution from native code.", recommendation: "Use execve-family calls with fixed argument vectors."}
+  - {id: CODE-CMD-008, kind: code, title: "Process.Start with concatenated arguments", languages: [csharp], severity: medium, cwe: CWE-78, category: command_execution,
+     pattern: 'Process\.Start\s*\([^)]*\+', description: "External process started with concatenated input.", recommendation: "Use ProcessStartInfo.ArgumentList and validation."}
+
+  # ---------------------------------------------------------------- code injection
+  - {id: CODE-EVAL-001, kind: code, title: "Dynamic code evaluation", languages: [python], severity: high, cwe: CWE-95, category: code_injection,
+     pattern: '(?<![\w.])(eval|exec)\s*\((?!\s*["''])', description: "eval/exec on non-literal input executes arbitrary code.", recommendation: "Use ast.literal_eval or explicit parsing."}
+  - {id: CODE-EVAL-002, kind: code, title: "JavaScript eval / Function constructor", languages: [javascript, typescript], severity: high, cwe: CWE-95, category: code_injection,
+     pattern: '(?<![\w.])(eval\s*\(|new\s+Function\s*\(|setTimeout\s*\(\s*["''`])', description: "String evaluated as code.", recommendation: "Remove dynamic evaluation."}
+  - {id: CODE-EVAL-003, kind: code, title: "PHP eval/assert on variables", languages: [php], severity: high, cwe: CWE-95, category: code_injection,
+     pattern: '\b(eval|assert|create_function)\s*\(\s*\$', description: "Evaluates PHP code from a variable.", recommendation: "Remove dynamic evaluation."}
+
+  # ---------------------------------------------------------------- SQL
+  - {id: CODE-SQL-001, kind: code, title: "SQL built with string formatting (Python)", languages: [python], severity: high, cwe: CWE-89, category: sql_injection, ignore_case: true,
+     pattern: '\.(execute|executemany|raw|text)\s*\(\s*(f["''][^"'']*\b(select|insert|update|delete|where)\b|["''][^"'']*\b(select|insert|update|delete|where)\b[^"'']*["'']\s*(%|\+|\.format\())',
+     description: "Query text is built from variables instead of bound parameters.", recommendation: "Use parameterised queries / ORM bindings."}
+  - {id: CODE-SQL-002, kind: code, title: "SQL concatenation (JS/TS)", languages: [javascript, typescript], severity: high, cwe: CWE-89, category: sql_injection, ignore_case: true,
+     pattern: '\.(query|raw|execute)\s*\(\s*(`[^`]*\b(select|insert|update|delete|where)\b[^`]*\$\{|["''][^"'']*\b(select|insert|update|delete|where)\b[^"'']*["'']\s*\+)',
+     description: "Query interpolates variables.", recommendation: "Use placeholders (?, $1) with parameter arrays."}
+  - {id: CODE-SQL-003, kind: code, title: "SQL concatenation (Java/Kotlin)", languages: [java, kotlin], severity: high, cwe: CWE-89, category: sql_injection, ignore_case: true,
+     pattern: '(executeQuery|executeUpdate|execute|prepareStatement|createQuery|createNativeQuery)\s*\(\s*"[^"]*\b(select|insert|update|delete|where)\b[^"]*"\s*\+',
+     description: "Query concatenates input.", recommendation: "Use PreparedStatement parameters / JPA named parameters."}
+  - {id: CODE-SQL-004, kind: code, title: "SQL with PHP variables", languages: [php], severity: high, cwe: CWE-89, category: sql_injection, ignore_case: true,
+     pattern: '(mysqli?_query|->query|->exec|pg_query)\s*\([^;]*"[^"]*\b(select|insert|update|delete|where)\b[^"]*\$', description: "Variables interpolated into SQL.", recommendation: "Use PDO prepared statements."}
+  - {id: CODE-SQL-005, kind: code, title: "SQL via fmt.Sprintf (Go)", languages: [go], severity: high, cwe: CWE-89, category: sql_injection, ignore_case: true,
+     pattern: '\.(Query|QueryRow|Exec|QueryContext|ExecContext)\s*\(\s*(ctx\s*,\s*)?fmt\.Sprintf\(', description: "Formatted SQL string.", recommendation: "Use $1/? placeholders."}
+  - {id: CODE-SQL-006, kind: code, title: "SQL concatenation (C#)", languages: [csharp], severity: high, cwe: CWE-89, category: sql_injection, ignore_case: true,
+     pattern: '(SqlCommand|ExecuteSqlRaw|FromSqlRaw|CommandText)\s*[\(=]\s*\$?"[^"]*\b(select|insert|update|delete|where)\b[^"]*("\s*\+|\{)', description: "Query built from input.", recommendation: "Use SqlParameter / interpolated FromSqlInterpolated."}
+
+  # ---------------------------------------------------------------- path traversal / files
+  - {id: CODE-PATH-001, kind: code, title: "File path from request data (Python)", languages: [python], severity: high, cwe: CWE-22, category: path_traversal,
+     pattern: '(open|send_file|send_from_directory|FileResponse|os\.path\.join)\s*\([^)]*request\.(args|form|values|files|GET|POST|query_params|path_params)', description: "Request data reaches a filesystem path.", recommendation: "Normalise and confine paths (safe_join), use allow-lists."}
+  - {id: CODE-PATH-002, kind: code, title: "File path from request data (Node)", languages: [javascript, typescript], severity: high, cwe: CWE-22, category: path_traversal,
+     pattern: '(sendFile|readFile|readFileSync|createReadStream|path\.join|res\.download)\s*\([^)]*req\.(params|query|body)', description: "Request parameters used in file paths.", recommendation: "Resolve against a base dir and verify the prefix."}
+  - {id: CODE-PATH-003, kind: code, title: "File path from request data (Java)", languages: [java, kotlin], severity: high, cwe: CWE-22, category: path_traversal,
+     pattern: 'new\s+(File|FileInputStream|FileReader)\s*\([^)]*getParameter\(', description: "Request parameter used as a path.", recommendation: "Canonicalise and confine paths."}
+  - {id: CODE-PATH-004, kind: code, title: "File inclusion / read from user input (PHP)", languages: [php], severity: high, cwe: CWE-22, category: path_traversal,
+     pattern: '(include|require|include_once|require_once|file_get_contents|fopen|readfile)\s*\(?\s*\$_(GET|POST|REQUEST|COOKIE)', description: "User input controls a file path (LFI/RFI).", recommendation: "Map identifiers to fixed paths."}
+  - {id: CODE-UPL-001, kind: code, title: "Uploaded file saved with client-supplied name", languages: [python], severity: medium, cwe: CWE-434, category: file_upload,
+     pattern: '\.save\s*\([^)]*\.filename\b', exclude: 'secure_filename', description: "Client-controlled filenames can overwrite files or plant executables.", recommendation: "Use secure_filename and generate server-side names."}
+
+  # ---------------------------------------------------------------- SSRF
+  - {id: CODE-SSRF-001, kind: code, title: "Outbound request to user-controlled URL (Python)", languages: [python], severity: high, cwe: CWE-918, category: ssrf,
+     pattern: '(requests\.(get|post|put|head|request)|urlopen|httpx\.(get|post)|urllib\.request\.Request)\s*\([^)]*request\.(args|form|values|json|GET|POST|query_params)', description: "Server fetches a URL supplied by the client.", recommendation: "Allow-list destinations and block internal ranges."}
+  - {id: CODE-SSRF-002, kind: code, title: "Outbound request to user-controlled URL (Node)", languages: [javascript, typescript], severity: high, cwe: CWE-918, category: ssrf,
+     pattern: '(fetch|axios\.(get|post|request)|got|http\.get|https\.get|request)\s*\(\s*req\.(query|body|params)', description: "Server fetches a client-supplied URL.", recommendation: "Allow-list destinations."}
+  - {id: CODE-SSRF-003, kind: code, title: "Outbound request to user-controlled URL (PHP/Go/Java)", languages: [php, go, java], severity: high, cwe: CWE-918, category: ssrf,
+     pattern: '(file_get_contents|curl_init|http\.Get|new\s+URL)\s*\(\s*(\$_(GET|POST|REQUEST)|r\.URL\.Query\(\)|request\.getParameter)', description: "Client controls the fetched URL.", recommendation: "Allow-list destinations."}
+
+  # ---------------------------------------------------------------- deserialization
+  - {id: CODE-DESER-001, kind: code, title: "Unsafe deserialization (pickle/marshal/shelve)", languages: [python], severity: high, cwe: CWE-502, category: deserialization,
+     pattern: '\b(pickle|cPickle|marshal|dill|shelve)\.(loads?|open)\s*\(', description: "Deserialising untrusted data executes code.", recommendation: "Use JSON or signed payloads."}
+  - {id: CODE-DESER-002, kind: code, title: "yaml.load without SafeLoader", languages: [python], severity: high, cwe: CWE-502, category: deserialization,
+     pattern: 'yaml\.(load|load_all|unsafe_load)\s*\(', exclude: 'SafeLoader|safe_load|CSafeLoader', description: "Full YAML loader can construct arbitrary objects.", recommendation: "Use yaml.safe_load."}
+  - {id: CODE-DESER-003, kind: code, title: "Java native deserialization", languages: [java, kotlin], severity: high, cwe: CWE-502, category: deserialization,
+     pattern: '(ObjectInputStream|XMLDecoder|readObject\s*\(\s*\))', description: "Native Java deserialization of untrusted data enables gadget-chain RCE.", recommendation: "Avoid native serialization; use allow-list filters (ObjectInputFilter)."}
+  - {id: CODE-DESER-004, kind: code, title: ".NET BinaryFormatter / unsafe serializers", languages: [csharp], severity: high, cwe: CWE-502, category: deserialization,
+     pattern: '(BinaryFormatter|NetDataContractSerializer|LosFormatter|SoapFormatter|TypeNameHandling\.(All|Auto|Objects))', description: "Insecure .NET deserialization.", recommendation: "Use System.Text.Json without type name handling."}
+  - {id: CODE-DESER-005, kind: code, title: "PHP unserialize on input", languages: [php], severity: high, cwe: CWE-502, category: deserialization,
+     pattern: 'unserialize\s*\(\s*\$', description: "PHP object injection.", recommendation: "Use json_decode."}
+  - {id: CODE-DESER-006, kind: code, title: "node-serialize / funcster unserialize", languages: [javascript, typescript], severity: high, cwe: CWE-502, category: deserialization,
+     pattern: '(node-serialize|serialize-javascript|funcster).*|\.unserialize\s*\(', description: "Serializers that revive functions execute code.", recommendation: "Use JSON.parse."}
+
+  # ---------------------------------------------------------------- crypto / TLS
+  - {id: CODE-CRYPTO-001, kind: code, title: "Weak hash for security purposes", languages: [any], severity: medium, cwe: CWE-328, category: weak_crypto, ignore_case: true,
+     pattern: '(hashlib\.(md5|sha1)\s*\(|MessageDigest\.getInstance\(\s*"(MD5|SHA-?1)"|createHash\(\s*["''](md5|sha1)["'']|\bmd5\s*\(\s*\$|crypto/md5|crypto/sha1|MD5\.Create\(|SHA1\.Create\()',
+     description: "MD5/SHA-1 are broken for collision resistance and unsuitable for passwords.", recommendation: "Use SHA-256+ for integrity and Argon2/bcrypt/scrypt for passwords."}
+  - {id: CODE-CRYPTO-002, kind: code, title: "Weak cipher or ECB mode", languages: [any], severity: medium, cwe: CWE-327, category: weak_crypto,
+     pattern: '(\bDES\b|DESede|\bRC4\b|\bARC4\b|Blowfish|AES/ECB|MODE_ECB|CipherMode\.ECB|"DES"|des-ede|rc4)', description: "Obsolete cipher or ECB mode.", recommendation: "Use AES-GCM or ChaCha20-Poly1305."}
+  - {id: CODE-CRYPTO-003, kind: code, title: "Non-cryptographic RNG for secrets", languages: [any], severity: medium, cwe: CWE-338, category: weak_crypto, ignore_case: true,
+     pattern: '(token|secret|password|nonce|salt|otp|session)[^=\n]{0,30}=\s*[^;\n]{0,40}(Math\.random\(\)|random\.(random|randint|choice)\(|rand\(\)|mt_rand\(|new\s+Random\()', description: "Predictable RNG used for a security value.", recommendation: "Use secrets / crypto.randomBytes / SecureRandom."}
+  - {id: CODE-TLS-001, kind: code, title: "TLS certificate verification disabled", languages: [any], severity: high, cwe: CWE-295, category: tls,
+     pattern: '(verify\s*=\s*False|rejectUnauthorized\s*:\s*false|InsecureSkipVerify\s*:\s*true|CURLOPT_SSL_VERIFYPEER\s*,\s*(false|0)|ServerCertificateValidationCallback\s*=|NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*["'']?0|TrustAllCerts|ssl\._create_unverified_context|check_hostname\s*=\s*False)',
+     description: "Disables TLS validation, enabling man-in-the-middle attacks.", recommendation: "Keep verification on; pin or install the proper CA."}
+
+  # ---------------------------------------------------------------- auth / session
+  - {id: CODE-AUTH-001, kind: code, title: "JWT signature verification disabled", languages: [any], severity: high, cwe: CWE-347, category: authentication, ignore_case: true,
+     pattern: '(verify_signature["'']?\s*:\s*False|jwt\.decode\([^)]*verify\s*=\s*False|algorithms\s*=\s*\[\s*["'']none["'']|\.decode\([^)]*algorithm[s]?\s*[:=]\s*["'']none|ignoreExpiration\s*:\s*true|alg["'']?\s*:\s*["'']none)',
+     description: "Tokens accepted without (valid) signature or expiry checks.", recommendation: "Always verify signature, algorithm and expiry."}
+  - {id: CODE-AUTH-002, kind: code, title: "Hardcoded framework secret key", languages: [python, javascript, typescript, php, ruby, java], severity: high, cwe: CWE-798, category: authentication,
+     pattern: '(SECRET_KEY|JWT_SECRET|secret_key_base|APP_KEY|session_secret|jwtSecret|secretOrKey)\s*[:=]\s*["''][^"''\s]{8,}["'']', exclude: '(environ|getenv|process\.env|ENV\[|config\(|example|changeme|your[-_])',
+     description: "Session/JWT signing secret committed in source.", recommendation: "Load secrets from the environment or a vault and rotate this one."}
+  - {id: CODE-AUTH-003, kind: code, title: "Debug mode enabled", languages: [python, php, javascript, typescript], severity: medium, cwe: CWE-489, category: configuration,
+     pattern: '(app\.run\([^)]*debug\s*=\s*True|^\s*DEBUG\s*=\s*True|APP_DEBUG\s*=\s*true|display_errors\s*=\s*On)', description: "Debug mode exposes stack traces and sometimes interactive consoles.", recommendation: "Disable debug in production."}
+  - {id: CODE-AUTH-004, kind: code, title: "Permissive CORS", languages: [any], severity: medium, cwe: CWE-942, category: configuration,
+     pattern: '(Access-Control-Allow-Origin["'']?\s*[:,]\s*["'']\*|origin\s*:\s*["'']\*["'']|CORS_ORIGIN_ALLOW_ALL\s*=\s*True|AllowAnyOrigin\(\)|allow_origins\s*=\s*\[\s*["'']\*)', description: "Any origin may call the API.", recommendation: "Allow-list trusted origins, especially with credentials."}
+  - {id: CODE-AUTH-005, kind: code, title: "CSRF protection disabled", languages: [python, java, javascript, typescript, php], severity: medium, cwe: CWE-352, category: authentication,
+     pattern: '(@csrf_exempt|csrf\(\)\.disable\(\)|WTF_CSRF_ENABLED\s*=\s*False|csrf:\s*false|VerifyCsrfToken.*except)', description: "CSRF checks are switched off.", recommendation: "Keep CSRF protection on for cookie-authenticated endpoints."}
+
+  # ---------------------------------------------------------------- web output
+  - {id: CODE-XSS-001, kind: code, title: "Unescaped HTML sink", languages: [javascript, typescript], severity: medium, cwe: CWE-79, category: xss,
+     pattern: '(\.innerHTML\s*=|\.outerHTML\s*=|dangerouslySetInnerHTML|document\.write\s*\(|insertAdjacentHTML\s*\(|v-html\s*=)', description: "HTML inserted without escaping.", recommendation: "Use textContent or sanitize with a vetted library."}
+  - {id: CODE-XSS-002, kind: code, title: "Template auto-escaping bypass", languages: [python, any], severity: medium, cwe: CWE-79, category: xss,
+     pattern: '(\|\s*safe\b|mark_safe\s*\(|Markup\s*\(|autoescape\s*=\s*False|\{\{\{[^}]+\}\}\}|<%-)', description: "Output marked safe bypasses escaping.", recommendation: "Escape user content; only mark trusted strings safe."}
+  - {id: CODE-REDIR-001, kind: code, title: "Open redirect", languages: [python, javascript, typescript, php, java], severity: medium, cwe: CWE-601, category: redirect,
+     pattern: '(redirect\s*\(\s*request\.(args|GET|values)|res\.redirect\s*\(\s*req\.(query|body|params)|header\s*\(\s*["'']Location:\s*["'']\s*\.\s*\$_GET|sendRedirect\s*\(\s*request\.getParameter)', description: "Redirect target comes from the request.", recommendation: "Allow-list redirect destinations."}
+  - {id: CODE-XXE-001, kind: code, title: "XML parser with external entities", languages: [python, java, php, csharp], severity: high, cwe: CWE-611, category: xxe,
+     pattern: '(resolve_entities\s*=\s*True|XMLParser\([^)]*no_network\s*=\s*False|libxml_disable_entity_loader\s*\(\s*false|DtdProcessing\.Parse|setExpandEntityReferences\(\s*true)', description: "External entity resolution enables XXE (file read, SSRF).", recommendation: "Disable DTDs/external entities (defusedxml in Python)."}
+  - {id: CODE-LOG-001, kind: code, title: "Sensitive data written to logs", languages: [any], severity: low, cwe: CWE-532, category: logging, ignore_case: true,
+     pattern: '(log(ger)?|console|print)[\w.]*\s*\([^)]*\b(password|passwd|secret|token|api[_-]?key|authorization)\b', description: "Secrets may end up in log files.", recommendation: "Redact sensitive fields before logging."}
+  - {id: CODE-HTTP-001, kind: code, title: "Cleartext HTTP endpoint for API traffic", languages: [any], severity: low, cwe: CWE-319, category: tls,
+     pattern: '["'']http://(?!localhost|127\.0\.0\.1|0\.0\.0\.0|schemas\.|www\.w3\.org|example\.)[a-z0-9.-]+\.[a-z]{2,}[^"'']*/(api|v\d|auth|login|token)', description: "Credentials or API data sent over plain HTTP.", recommendation: "Use HTTPS."}

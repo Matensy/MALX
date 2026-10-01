@@ -1,0 +1,165 @@
+rules:
+  - id: HEUR-EVA-001
+    name: Debugger detection
+    category: anti_analysis
+    severity: low
+    confidence: 0.45
+    applies_to: [pe, elf]
+    conditions:
+      at_least:
+        n: 2
+        of:
+          - imports_any: [IsDebuggerPresent]
+          - imports_any: [CheckRemoteDebuggerPresent]
+          - imports_any: [NtQueryInformationProcess, ZwQueryInformationProcess]
+          - imports_any: [NtSetInformationThread, ZwSetInformationThread]
+          - imports_any: [OutputDebugStringA, OutputDebugStringW]
+          - all:
+              - file_type: [elf]
+              - imports_any: [ptrace]
+    explanation: "Several independent debugger-detection primitives are present."
+    legitimate: "IsDebuggerPresent alone appears in most MSVC binaries (CRT); multiple checks are more telling."
+    mitre: [T1622]
+
+  - id: HEUR-EVA-002
+    name: Virtual machine / sandbox detection
+    category: anti_analysis
+    severity: medium
+    confidence: 0.6
+    conditions:
+      any:
+        - string_tags_count: {any: [vm_detection], min: 1}
+        - string_tags_any: [sandbox_usernames]
+      # requires more than a single artefact name to fire strongly; see HEUR-EVA-003
+    explanation: "Names of VM tools, drivers or sandbox accounts are embedded, typically to refuse running under analysis."
+    legitimate: "Software that integrates with hypervisors (guest tools, backup agents) references them."
+    mitre: [T1497.001]
+
+  - id: HEUR-EVA-003
+    name: Analysis tool process blacklist
+    category: anti_analysis
+    severity: medium
+    confidence: 0.65
+    conditions:
+      all:
+        - string_tags_any: [analysis_tool_detection]
+        - any:
+            - imports_any: [CreateToolhelp32Snapshot, Process32First, Process32FirstW, Process32NextW, EnumProcesses, FindWindowA, FindWindowW]
+            - strings_count: {any: ["wireshark", "procmon", "procexp", "x64dbg", "ollydbg", "fiddler", "processhacker", "ida64", "pestudio", "dnspy"], min: 3}
+    explanation: "Names of debuggers/monitoring tools are embedded next to process/window enumeration — a classic analysis-evasion check."
+    legitimate: "System utilities may list known tools for compatibility."
+    mitre: [T1497.001, T1518.001]
+
+  - id: HEUR-EVA-004
+    name: Timing-based evasion
+    category: anti_analysis
+    severity: low
+    confidence: 0.4
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [Sleep, SleepEx, NtDelayExecution, WaitForSingleObject]
+        - imports_any: [GetTickCount, GetTickCount64, QueryPerformanceCounter, GetSystemTimeAsFileTime]
+        - any:
+            - evidence_category_count: {category: anti_analysis, min: 2}
+            - strings_any: ["rdtsc"]
+    explanation: "Sleep and timer APIs combined with other anti-analysis indicators suggest timing checks or sandbox delays."
+    legitimate: "Sleeps and timers are ubiquitous; this rule only fires next to other anti-analysis evidence."
+    mitre: [T1497.003]
+
+  - id: HEUR-EVA-005
+    name: Security tool tampering
+    category: defense_evasion
+    severity: high
+    confidence: 0.7
+    conditions:
+      any:
+        - string_tags_any: [defender_tampering, amsi_bypass]
+        - strings_count: {any: ["msmpeng", "windefend", "sense", "wdfilter", "mpcmdrun", "taskkill /f /im", "sc stop", "net stop"], min: 3}
+    explanation: "Commands or strings disable Defender/AMSI or stop security services."
+    legitimate: "Administrative scripts in managed environments configure Defender exclusions."
+    mitre: [T1562.001]
+
+  - id: HEUR-EVA-006
+    name: Event log clearing
+    category: defense_evasion
+    severity: medium
+    confidence: 0.6
+    conditions:
+      string_tags_any: [event_log_clearing]
+    explanation: "Clears Windows event logs, removing forensic traces."
+    legitimate: "Rare in software; occasionally in maintenance scripts."
+    mitre: [T1070.001]
+
+  - id: HEUR-EVA-007
+    name: Firewall modification
+    category: defense_evasion
+    severity: low
+    confidence: 0.45
+    conditions:
+      string_tags_any: [firewall_tampering]
+    explanation: "netsh firewall rules are added or the firewall disabled."
+    legitimate: "Server software opens its own ports during installation."
+    mitre: [T1562.004]
+
+  - id: HEUR-EVA-008
+    name: UAC bypass indicators
+    category: privilege
+    severity: high
+    confidence: 0.6
+    conditions:
+      all:
+        - string_tags_any: [uac_bypass_hint]
+        - any:
+            - imports_any: [RegSetValueExA, RegSetValueExW, RegCreateKeyExA, RegCreateKeyExW]
+            - strings_any: ["reg add", "new-item", "set-itemproperty", "delegateexecute"]
+    explanation: "Auto-elevating binaries (fodhelper, eventvwr, sdclt...) are referenced together with registry writes to their shell\\open\\command keys."
+    legitimate: "Practically none."
+    mitre: [T1548.002]
+
+  - id: HEUR-EVA-009
+    name: Self-deletion pattern
+    category: defense_evasion
+    severity: medium
+    confidence: 0.5
+    conditions:
+      all:
+        - strings_any: ["ping 127.0.0.1 -n", "ping -n 1 127.0.0.1", "timeout /t", "choice /c y /n /d y /t", "sleep 1 &&"]
+        - any:
+            - strings_regex: '(?i)\bdel\s+(/f\s+)?(/q\s+)?["%]'
+            - strings_any: ["remove-item", "rm -f \"$0\"", "rm -- \"$0\""]
+    explanation: "A delay command chained with file deletion — the program removes itself after running."
+    legitimate: "Uninstallers delete themselves the same way."
+    mitre: [T1070.004]
+
+  - id: HEUR-EVA-010
+    name: Privilege adjustment for debug rights
+    category: privilege
+    severity: medium
+    confidence: 0.55
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [AdjustTokenPrivileges]
+        - strings_any: ["sedebugprivilege"]
+    explanation: "Enables SeDebugPrivilege, allowing access to any process (prerequisite for injection/dumping)."
+    legitimate: "Debuggers, task managers and security tools."
+    mitre: [T1134]
+
+  - id: HEUR-EVA-011
+    name: Packed executable with minimal imports
+    category: packing
+    severity: medium
+    confidence: 0.6
+    applies_to: [pe, elf]
+    conditions:
+      all:
+        - any:
+            - evidence_any: [packer_detected, pe_rwx_section, pe_virtual_only_exec_section, elf_rwx_segment]
+            - evidence_any: [pe_high_entropy_section, elf_high_entropy_section]
+        - any:
+            - evidence_any: [pe_few_imports, pe_no_imports, elf_no_section_headers]
+            - entropy_gte: 7.2
+    explanation: "Structure indicates the real code is compressed/encrypted and unpacked at runtime."
+    legitimate: "Commercial software is packed with UPX/MPRESS or protected with Themida/VMProtect for size or IP reasons."
+    mitre: [T1027.002]

@@ -1,0 +1,122 @@
+rules:
+  - id: HEUR-NET-001
+    name: Hardcoded IP address in URL
+    category: network
+    severity: medium
+    confidence: 0.55
+    conditions:
+      ioc_flag_any: [ip_host]
+    explanation: "A URL uses a raw IP address instead of a hostname, avoiding DNS and domain reputation."
+    legitimate: "Internal tools and appliances often use IP-based URLs."
+    mitre: [T1071.001]
+
+  - id: HEUR-NET-002
+    name: Dynamic DNS / tunnelling infrastructure
+    category: network
+    severity: medium
+    confidence: 0.6
+    conditions:
+      ioc_service_any: [dynamic_dns, tunnels]
+    explanation: "Endpoints on dynamic-DNS or tunnelling services (duckdns, no-ip, ngrok...) are cheap, disposable and favoured for C2."
+    legitimate: "Hobby projects and home servers use dynamic DNS."
+    mitre: [T1568]
+
+  - id: HEUR-NET-003
+    name: Paste / file-sharing service as payload host
+    category: network
+    severity: medium
+    confidence: 0.55
+    conditions:
+      ioc_service_any: [paste_sites, file_sharing, logger]
+    explanation: "Paste sites and anonymous file-sharing services are referenced; they are commonly used to host second-stage payloads or configuration."
+    legitimate: "Developer tools may link to paste services."
+    mitre: [T1102, T1105]
+
+  - id: HEUR-NET-004
+    name: Chat platform webhook/bot channel
+    category: network
+    severity: high
+    confidence: 0.65
+    conditions:
+      any:
+        - string_tags_any: [exfil_webhook]
+        - all:
+            - ioc_service_any: [chat_api]
+            - strings_any: ["/api/webhooks/", "/bot", "sendmessage", "senddocument"]
+    explanation: "Discord webhooks or Telegram bot APIs are used to exfiltrate data from stealers."
+    legitimate: "Bots and notification integrations use the same APIs."
+    mitre: [T1567, T1102]
+
+  - id: HEUR-NET-005
+    name: Non-standard port in network indicator
+    category: network
+    severity: low
+    confidence: 0.45
+    conditions:
+      ioc_flag_any: [unusual_port]
+    explanation: "Network indicators use ports commonly associated with RATs/backdoors (4444, 1337, 31337...)."
+    legitimate: "Development servers use arbitrary ports."
+    mitre: [T1571]
+
+  - id: HEUR-NET-006
+    name: Tor / onion service reference
+    category: network
+    severity: medium
+    confidence: 0.6
+    conditions:
+      any:
+        - ioc_any: [onion]
+        - string_tags_any: [tor_reference]
+    explanation: "Onion services or local Tor SOCKS proxies are referenced."
+    legitimate: "Privacy software integrates Tor."
+    mitre: [T1090.003]
+
+  - id: HEUR-NET-007
+    name: Public IP / geolocation lookup
+    category: discovery
+    severity: low
+    confidence: 0.5
+    conditions:
+      any:
+        - string_tags_any: [public_ip_lookup]
+        - ioc_service_any: [ip_lookup]
+    explanation: "Queries services that return the victim's public IP/geolocation, common in stealer reconnaissance."
+    legitimate: "Network diagnostics and VPN clients."
+    mitre: [T1016]
+
+  - id: HEUR-NET-008
+    name: HTTP client with hardcoded User-Agent and endpoints
+    category: network
+    severity: low
+    confidence: 0.45
+    applies_to: [pe, elf, macho, dex, jar]
+    conditions:
+      all:
+        - ioc_any: [user_agent]
+        - ioc_count: {type: url, min: 1}
+        - imports_any: [InternetOpenA, InternetOpenW, WinHttpOpen, HttpSendRequestA, HttpSendRequestW, socket, connect, curl_easy_init]
+    explanation: "A hardcoded browser User-Agent next to HTTP APIs and URLs: the binary impersonates a browser when talking to its endpoints."
+    legitimate: "Many HTTP clients set a browser-like User-Agent."
+    mitre: [T1071.001]
+
+  - id: HEUR-NET-009
+    name: Remote access tooling references
+    category: network
+    severity: medium
+    confidence: 0.45
+    conditions:
+      strings_count: {any: ["anydesk", "teamviewer", "screenconnect", "connectwise", "atera", "splashtop", "rustdesk", "ngrok", "meshagent", "netsupport"], min: 2}
+    explanation: "Several remote administration products are referenced (frequently abused for hands-on access)."
+    legitimate: "IT support tooling and RMM integrations."
+    mitre: [T1219]
+
+  - id: HEUR-NET-010
+    name: Suspicious top-level domains
+    category: network
+    severity: low
+    confidence: 0.35
+    conditions:
+      ioc_flag_any: [suspicious_tld]
+    explanation: "Indicators use TLDs with high abuse rates. TLD alone says very little."
+    legitimate: "Many legitimate sites use these TLDs."
+    mitre: []

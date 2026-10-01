@@ -1,0 +1,239 @@
+# Catalogue of APIs that are *interesting* for analysis. Every entry documents
+# legitimate uses: an API on this list is context, never proof of malice.
+#
+# category  -> evidence category / risk dimension
+# severity  -> severity of the observation on its own (kept low on purpose)
+# legit     -> common legitimate reasons for the API to be present
+
+apis:
+  # --- memory / injection -------------------------------------------------------
+  - names: [VirtualAlloc, VirtualAllocEx, VirtualAllocExNuma, NtAllocateVirtualMemory, ZwAllocateVirtualMemory]
+    category: injection
+    severity: low
+    description: Allocates virtual memory (when combined with protection changes/writes it can stage code).
+    legit: JIT compilers, memory allocators, runtimes, game engines.
+  - names: [VirtualProtect, VirtualProtectEx, NtProtectVirtualMemory]
+    category: injection
+    severity: low
+    description: Changes memory protection, e.g. making a buffer executable.
+    legit: JIT compilers, packers used by commercial software, DRM, hot-patching.
+  - names: [WriteProcessMemory, NtWriteVirtualMemory, ZwWriteVirtualMemory]
+    category: injection
+    severity: medium
+    description: Writes into the memory of another process.
+    legit: Debuggers, game trainers, security software, instrumentation frameworks.
+  - names: [ReadProcessMemory, NtReadVirtualMemory]
+    category: injection
+    severity: low
+    description: Reads the memory of another process.
+    legit: Debuggers, profilers, anti-cheat, process monitors.
+  - names: [CreateRemoteThread, CreateRemoteThreadEx, NtCreateThreadEx, RtlCreateUserThread]
+    category: injection
+    severity: medium
+    description: Starts a thread inside another process.
+    legit: Debuggers, accessibility and instrumentation tools.
+  - names: [QueueUserAPC, NtQueueApcThread, NtQueueApcThreadEx]
+    category: injection
+    severity: medium
+    description: Queues an asynchronous procedure call to a thread (APC injection primitive).
+    legit: Asynchronous I/O frameworks.
+  - names: [SetThreadContext, NtSetContextThread, Wow64SetThreadContext]
+    category: injection
+    severity: medium
+    description: Modifies a thread's register context (thread hijacking / hollowing primitive).
+    legit: Debuggers, emulators.
+  - names: [NtUnmapViewOfSection, ZwUnmapViewOfSection]
+    category: injection
+    severity: medium
+    description: Unmaps a section from a process (classic process-hollowing step).
+    legit: Rare in ordinary applications; memory-mapped file management.
+  - names: [NtMapViewOfSection, ZwMapViewOfSection, NtCreateSection, ZwCreateSection]
+    category: injection
+    severity: low
+    description: Maps shared sections between processes (section-mapping injection primitive).
+    legit: Shared memory, file mapping.
+  - names: [OpenProcess, NtOpenProcess]
+    category: injection
+    severity: info
+    description: Obtains a handle to another process.
+    legit: Task managers, monitoring, IPC.
+  - names: [SetWindowsHookExA, SetWindowsHookExW]
+    category: collection
+    severity: medium
+    description: Installs a system hook (used by keyloggers and for DLL injection).
+    legit: Accessibility tools, hotkey managers, input method editors.
+
+  # --- execution ------------------------------------------------------------------
+  - names: [CreateProcessA, CreateProcessW, CreateProcessAsUserA, CreateProcessAsUserW, CreateProcessWithTokenW, CreateProcessWithLogonW]
+    category: execution
+    severity: info
+    description: Creates a new process.
+    legit: Launchers, installers, almost any application that spawns helpers.
+  - names: [WinExec, ShellExecuteA, ShellExecuteW, ShellExecuteExA, ShellExecuteExW]
+    category: execution
+    severity: low
+    description: Executes a program or opens a file through the shell.
+    legit: Opening documents/URLs, installers, updaters.
+  - names: [system, _wsystem, popen, _popen, execve, execl, execlp, execvp, fork, posix_spawn]
+    category: execution
+    severity: info
+    description: Executes commands or spawns processes (C runtime / POSIX).
+    legit: Shell utilities, build tools, launchers.
+
+  # --- persistence / services ------------------------------------------------------
+  - names: [RegSetValueExA, RegSetValueExW, RegCreateKeyExA, RegCreateKeyExW, RegSetKeyValueA, RegSetKeyValueW]
+    category: persistence
+    severity: info
+    description: Writes to the Windows registry.
+    legit: Settings storage for countless applications.
+  - names: [CreateServiceA, CreateServiceW, ChangeServiceConfigA, ChangeServiceConfigW]
+    category: persistence
+    severity: low
+    description: Creates or modifies a Windows service.
+    legit: Installers for services and drivers.
+  - names: [StartServiceA, StartServiceW, OpenSCManagerA, OpenSCManagerW]
+    category: persistence
+    severity: info
+    description: Service Control Manager access.
+    legit: Service management tools, installers.
+
+  # --- network ---------------------------------------------------------------------
+  - names: [InternetOpenA, InternetOpenW, InternetOpenUrlA, InternetOpenUrlW, InternetConnectA, InternetConnectW, HttpOpenRequestA, HttpOpenRequestW, HttpSendRequestA, HttpSendRequestW, InternetReadFile]
+    category: network
+    severity: info
+    description: WinINet HTTP client APIs.
+    legit: Updaters, browsers, any HTTP client.
+  - names: [WinHttpOpen, WinHttpConnect, WinHttpOpenRequest, WinHttpSendRequest, WinHttpReceiveResponse, WinHttpReadData]
+    category: network
+    severity: info
+    description: WinHTTP client APIs.
+    legit: Updaters, telemetry, HTTP clients.
+  - names: [URLDownloadToFileA, URLDownloadToFileW, URLDownloadToCacheFileA, URLDownloadToCacheFileW]
+    category: network
+    severity: low
+    description: Downloads a URL straight to disk.
+    legit: Updaters and installers.
+  - names: [WSAStartup, socket, connect, send, recv, WSASocketA, WSASocketW, WSAConnect, gethostbyname, getaddrinfo, inet_addr, bind, listen, accept]
+    category: network
+    severity: info
+    description: Raw socket networking.
+    legit: Network software of all kinds.
+  - names: [DnsQuery_A, DnsQuery_W, DnsQueryEx]
+    category: network
+    severity: low
+    description: Direct DNS queries (can be used for DNS tunnelling).
+    legit: Network diagnostics.
+
+  # --- credential access -------------------------------------------------------------
+  - names: [CryptUnprotectData]
+    category: credential_access
+    severity: medium
+    description: Decrypts DPAPI-protected data (browser passwords/cookies are DPAPI protected).
+    legit: Applications reading their own protected secrets.
+  - names: [CredEnumerateA, CredEnumerateW, CredReadA, CredReadW, VaultEnumerateItems, VaultGetItem]
+    category: credential_access
+    severity: medium
+    description: Enumerates or reads Windows Credential Manager / Vault entries.
+    legit: Password managers, enterprise SSO tools.
+  - names: [LsaRetrievePrivateData, LsaEnumerateLogonSessions, SamConnect, SamrQueryInformationUser]
+    category: credential_access
+    severity: medium
+    description: Accesses LSA/SAM secrets or logon sessions.
+    legit: Administrative and auditing tools.
+  - names: [MiniDumpWriteDump]
+    category: credential_access
+    severity: low
+    description: Writes a process memory dump (dumping LSASS is a common credential theft technique).
+    legit: Crash reporters, debuggers.
+
+  # --- privilege -----------------------------------------------------------------------
+  - names: [AdjustTokenPrivileges, LookupPrivilegeValueA, LookupPrivilegeValueW]
+    category: privilege
+    severity: low
+    description: Enables token privileges (e.g. SeDebugPrivilege).
+    legit: System utilities, installers, backup software.
+  - names: [ImpersonateLoggedOnUser, DuplicateTokenEx, SetThreadToken, ImpersonateNamedPipeClient]
+    category: privilege
+    severity: low
+    description: Token impersonation / duplication.
+    legit: Services acting on behalf of clients.
+
+  # --- anti-analysis --------------------------------------------------------------------
+  - names: [IsDebuggerPresent, CheckRemoteDebuggerPresent, NtQueryInformationProcess, OutputDebugStringA, OutputDebugStringW]
+    category: anti_analysis
+    severity: low
+    description: Debugger detection primitives.
+    legit: Copy-protection, games, debugging-aware runtimes (very common in CRT startup code).
+  - names: [NtSetInformationThread, ZwSetInformationThread]
+    category: anti_analysis
+    severity: low
+    description: Can hide threads from debuggers (ThreadHideFromDebugger).
+    legit: Copy protection.
+  - names: [GetTickCount, GetTickCount64, QueryPerformanceCounter, NtDelayExecution]
+    category: anti_analysis
+    severity: info
+    description: Timing primitives (timing checks / sandbox delays when combined with sleeps).
+    legit: Practically every application.
+  - names: [ptrace]
+    category: anti_analysis
+    severity: low
+    description: Process tracing (self-ptrace is a Linux anti-debugging trick).
+    legit: Debuggers, sandboxes, tracers.
+
+  # --- discovery ------------------------------------------------------------------------
+  - names: [CreateToolhelp32Snapshot, Process32First, Process32FirstW, Process32Next, Process32NextW, EnumProcesses, NtQuerySystemInformation]
+    category: discovery
+    severity: info
+    description: Enumerates running processes.
+    legit: Task managers, monitoring tools, launchers.
+  - names: [GetComputerNameA, GetComputerNameW, GetUserNameA, GetUserNameW, GetVersionExA, GetVersionExW, RtlGetVersion, GetSystemInfo, GetNativeSystemInfo]
+    category: discovery
+    severity: info
+    description: Collects host information.
+    legit: Telemetry, licensing, compatibility checks.
+  - names: [GetAdaptersInfo, GetAdaptersAddresses, GetIpNetTable, NetShareEnum, NetUserEnum, NetServerEnum]
+    category: discovery
+    severity: low
+    description: Network / account discovery.
+    legit: Network management tools.
+  - names: [FindFirstFileA, FindFirstFileW, FindFirstFileExW, FindNextFileA, FindNextFileW, GetLogicalDrives, GetDriveTypeA, GetDriveTypeW]
+    category: discovery
+    severity: info
+    description: File-system enumeration.
+    legit: File managers, backup and search tools.
+
+  # --- collection -----------------------------------------------------------------------
+  - names: [GetAsyncKeyState, GetKeyState, GetKeyboardState, RegisterRawInputDevices, GetRawInputData]
+    category: collection
+    severity: low
+    description: Keyboard state polling / raw input (keylogging primitive).
+    legit: Games, hotkey handlers, accessibility tools.
+  - names: [GetClipboardData, SetClipboardData, OpenClipboard, AddClipboardFormatListener]
+    category: collection
+    severity: info
+    description: Clipboard access.
+    legit: Editors, clipboard managers.
+  - names: [BitBlt, GetDC, GetWindowDC, CreateCompatibleBitmap, PrintWindow]
+    category: collection
+    severity: info
+    description: Screen / window capture primitives.
+    legit: GUI rendering, screenshot and remote-support tools.
+
+  # --- crypto / impact --------------------------------------------------------------------
+  - names: [CryptEncrypt, CryptDecrypt, CryptGenKey, CryptImportKey, CryptAcquireContextA, CryptAcquireContextW, BCryptEncrypt, BCryptDecrypt, BCryptGenerateSymmetricKey, BCryptImportKeyPair]
+    category: impact
+    severity: info
+    description: Cryptography APIs (encryption at scale is a ransomware trait).
+    legit: TLS, password managers, archivers, licensing.
+  - names: [DeleteFileA, DeleteFileW, MoveFileExA, MoveFileExW, SetFileAttributesA, SetFileAttributesW]
+    category: file_manipulation
+    severity: info
+    description: File deletion / renaming / attribute changes.
+    legit: Most applications.
+
+  # --- dynamic resolution / loading ------------------------------------------------------
+  - names: [LoadLibraryA, LoadLibraryW, LoadLibraryExA, LoadLibraryExW, LdrLoadDll, GetProcAddress, LdrGetProcedureAddress, dlopen, dlsym]
+    category: packing
+    severity: info
+    description: Runtime API resolution (heavy reliance can hide the real import table).
+    legit: Plugin systems, optional features, runtimes.

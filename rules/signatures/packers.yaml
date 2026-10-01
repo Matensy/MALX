@@ -1,0 +1,98 @@
+# Packer / protector / installer / compiler fingerprints.
+# kind: packer | protector | installer | compiler | bundler
+# A match is context: packers and protectors are common in commercial software.
+
+packers:
+  - name: UPX
+    kind: packer
+    section_names: [UPX0, UPX1, UPX2, UPX!]
+    markers: ["UPX!", "$Info: This file is packed with the UPX"]
+  - name: ASPack
+    kind: packer
+    section_names: [.aspack, .adata, ASPack]
+  - name: MPRESS
+    kind: packer
+    section_names: [.MPRESS1, .MPRESS2]
+  - name: PECompact
+    kind: packer
+    section_names: [PEC2, PEC2TO, PECompact2, pec1, pec2, PEC2MO]
+  - name: Petite
+    kind: packer
+    section_names: [.petite]
+  - name: FSG
+    kind: packer
+    section_names: [FSG!]
+  - name: NsPack
+    kind: packer
+    section_names: [.nsp0, .nsp1, .nsp2, nsp0, nsp1, nsp2]
+  - name: MEW
+    kind: packer
+    section_names: [MEW]
+  - name: kkrunchy
+    kind: packer
+    section_names: [kkrunchy]
+  - name: Themida/WinLicense
+    kind: protector
+    section_names: [.themida, .winlice, Themida, WinLicen]
+  - name: VMProtect
+    kind: protector
+    section_names: [.vmp0, .vmp1, .vmp2]
+  - name: Enigma Protector
+    kind: protector
+    section_names: [.enigma1, .enigma2]
+  - name: Obsidium
+    kind: protector
+    section_names: [.obsidium]
+  - name: ConfuserEx (.NET)
+    kind: protector
+    markers: [ConfusedByAttribute, "ConfuserEx v"]
+  - name: NSIS installer
+    kind: installer
+    markers: ["Nullsoft Install System", "NullsoftInst", "nsis.sf.net"]
+  - name: Inno Setup installer
+    kind: installer
+    markers: ["Inno Setup Setup Data", "Inno Setup Messages", "JR.Inno.Setup"]
+  - name: InstallShield
+    kind: installer
+    markers: ["InstallShield"]
+  - name: WiX Burn bundle
+    kind: installer
+    section_names: [.wixburn]
+  - name: 7-Zip SFX
+    kind: installer
+    markers: ["7-Zip SFX", ";!@Install@!UTF-8!"]
+  - name: WinRAR SFX
+    kind: installer
+    markers: ["WinRAR SFX", "RarSFX"]
+  - name: PyInstaller
+    kind: bundler
+    markers: ["_MEIPASS", "PyInstaller", "pyi-runtime-tmpdir", "MEI\x0c\x0b\x0a\x0b\x0e"]
+  - name: py2exe
+    kind: bundler
+    markers: ["PY2EXE_VERBOSE", "py2exe"]
+  - name: Nuitka
+    kind: bundler
+    markers: ["NUITKA_ONEFILE_PARENT", "nuitka"]
+  - name: AutoIt
+    kind: bundler
+    markers: ["AU3!EA06", "AutoIt v3", ">>>AUTOIT SCRIPT<<<"]
+  - name: Electron
+    kind: bundler
+    markers: ["electron.asar", "ELECTRON_RUN_AS_NODE"]
+  - name: Go
+    kind: compiler
+    section_names: [.symtab]
+    markers: ["Go build ID:", "runtime.gopanic", "go.buildid"]
+    require_marker: true
+  - name: Rust
+    kind: compiler
+    markers: ["/rustc/", "rust_panic", "RUST_BACKTRACE"]
+  - name: Delphi / C++Builder
+    kind: compiler
+    markers: ["Borland", "Embarcadero", "SOFTWARE\\Borland\\Delphi", "TApplication"]
+  - name: Nim
+    kind: compiler
+    markers: ["@nimMain", "NimMain", "nimGC"]
+  - name: MinGW
+    kind: compiler
+    markers: ["Mingw-w64 runtime failure", "GCC: (GNU)"]

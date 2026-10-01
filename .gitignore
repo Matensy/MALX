@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Runtime storage — samples, extracted artifacts, evidence and reports never go to git
+storage/**
+!storage/
+!storage/*/
+!storage/*/.gitkeep
+
+# Generated synthetic samples
+tests/samples/generated/
+
+# Local configuration overrides
+malx.local.yaml
+.env

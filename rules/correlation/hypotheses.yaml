@@ -1,0 +1,236 @@
+# Correlation rules: many observations -> one investigation finding.
+#
+# requires:   every group must be satisfied by evidence in the same unit
+#             (a submitted sample together with everything extracted from it).
+# supporting: optional groups that raise confidence when present.
+# A group matches evidence by categories / types / rules (heuristic ids or "yara:")
+# with severity >= min_severity (default: low) and at least min_count items (default 1).
+# min_sources: distinct engines that must contribute (prevents one-engine verdicts).
+
+rules:
+  - id: CORR-CRED-001
+    title: Potential credential theft with an exfiltration channel
+    hypothesis: credential_stealer
+    category: credential_access
+    severity: high
+    min_sources: 2
+    requires:
+      - {categories: [credential_access], min_severity: medium}
+      - {categories: [network]}
+    supporting:
+      - {categories: [anti_analysis, defense_evasion, packing]}
+      - {categories: [discovery, collection]}
+      - {types: [reverse_api_sequence], categories: [credential_access]}
+    what: "Credential stores (browser databases, wallets, credential managers or tokens) are referenced alongside network communication capability."
+    why: "Accessing credential stores and having a channel to send data out is the core of information-stealer behaviour."
+    recommendation: "Treat credentials on hosts that ran this file as exposed; review outbound connections to the listed indicators; reset passwords and session tokens."
+
+  - id: CORR-RANS-001
+    title: Potential ransomware-like behaviour
+    hypothesis: ransomware
+    category: impact
+    severity: critical
+    min_sources: 2
+    requires:
+      - {categories: [impact], min_severity: high}
+      - {categories: [impact, file_manipulation, discovery, defense_evasion], min_count: 2}
+    supporting:
+      - {types: [yara_match], categories: [impact]}
+      - {categories: [packing, anti_analysis]}
+    what: "Recovery inhibition, ransom-note language and/or bulk encryption capability were observed together."
+    why: "Deleting backups and encrypting files with ransom instructions is how file-encrypting ransomware operates."
+    recommendation: "Isolate affected hosts, preserve evidence, verify backup integrity offline, and hunt for the IOCs listed."
+
+  - id: CORR-INJ-001
+    title: Potential process injection / in-memory loader
+    hypothesis: loader_injector
+    category: injection
+    severity: high
+    min_sources: 2
+    requires:
+      - {categories: [injection], min_severity: medium}
+      - {categories: [packing, network, defense_evasion, anti_analysis]}
+    supporting:
+      - {types: [reverse_api_sequence], categories: [injection]}
+      - {categories: [execution]}
+    what: "Code-injection primitives coexist with packing, evasion or network capability."
+    why: "Loaders unpack or download a payload and inject it into another process to hide it."
+    recommendation: "Inspect process trees on exposed hosts for unexpected injected threads; extract the payload in a dedicated lab if needed."
+
+  - id: CORR-DL-001
+    title: Potential downloader / dropper
+    hypothesis: downloader
+    category: network
+    severity: high
+    min_sources: 1
+    requires:
+      - {categories: [network], min_severity: medium}
+      - {categories: [execution, packing], min_severity: medium}
+    supporting:
+      - {categories: [persistence]}
+      - {categories: [defense_evasion, anti_analysis]}
+    what: "Retrieves remote content and has the means to execute or unpack it."
+    why: "Download-and-execute chains deliver second-stage payloads."
+    recommendation: "Block the network indicators and check hosts for files written by this sample."
+
+  - id: CORR-PERS-001
+    title: Persistence combined with remote communication
+    hypothesis: backdoor
+    category: persistence
+    severity: high
+    min_sources: 2
+    requires:
+      - {categories: [persistence], min_severity: medium}
+      - {categories: [network]}
+    supporting:
+      - {categories: [execution]}
+      - {categories: [discovery, collection]}
+      - {categories: [defense_evasion, anti_analysis, packing]}
+    what: "The artifact installs a persistence mechanism and communicates with remote endpoints."
+    why: "Surviving reboots while keeping a remote channel is typical of backdoors and RATs."
+    recommendation: "Check autorun locations, scheduled tasks and services on exposed hosts; block the endpoints."
+
+  - id: CORR-EVA-001
+    title: Evasive packed executable
+    hypothesis: evasive_packed
+    category: packing
+    severity: medium
+    min_sources: 1
+    requires:
+      - {categories: [packing], min_severity: medium, min_count: 2}
+      - {categories: [anti_analysis, defense_evasion], min_severity: low}
+    supporting:
+      - {categories: [injection]}
+    what: "The executable hides its code (packing/encryption) and checks for analysis environments."
+    why: "Combining packing with anti-analysis checks aims to defeat both static and dynamic inspection."
+    recommendation: "Static results are limited by packing; consider unpacking in an isolated lab."
+
+  - id: CORR-DOC-001
+    title: Weaponised document delivery chain
+    hypothesis: malicious_document
+    category: document
+    severity: high
+    min_sources: 1
+    requires:
+      - {categories: [document], min_severity: medium}
+      - {categories: [execution, network, injection, packing], min_severity: medium}
+    supporting:
+      - {categories: [defense_evasion]}
+      - {types: [yara_match]}
+    what: "Active document content (macros, exploit-like objects, scripts, remote templates) is combined with execution/download capability."
+    why: "Documents that execute code or fetch remote content when opened are a primary initial-access vector."
+    recommendation: "Do not open the document outside an isolated environment; block the referenced URLs; check mail gateways for similar attachments."
+
+  - id: CORR-PHISH-001
+    title: Masqueraded executable delivery
+    hypothesis: phishing_lure
+    category: defense_evasion
+    severity: high
+    min_sources: 1
+    requires:
+      - {rules: [HEUR-FILE-001, HEUR-FILE-002, HEUR-FILE-003, HEUR-FILE-004]}
+      - {categories: [execution, network, packing, persistence, injection], min_severity: low}
+    supporting:
+      - {types: [archive_encrypted]}
+    what: "An executable is disguised as a document (extension tricks, RTLO, lure names) and carries capability indicators."
+    why: "Masquerading is only needed when the author wants the user to run something they would otherwise not trust."
+    recommendation: "Block the delivery vector (mail/web), notify recipients, and search for the hashes across endpoints."
+
+  - id: CORR-SPY-001
+    title: Potential spyware / surveillance capability
+    hypothesis: spyware
+    category: collection
+    severity: medium
+    min_sources: 1
+    requires:
+      - {categories: [collection], min_severity: medium}
+      - {categories: [network]}
+    supporting:
+      - {categories: [persistence]}
+      - {categories: [anti_analysis, defense_evasion]}
+    what: "Keystroke, clipboard or screen collection capability together with network indicators."
+    why: "Collecting user input or screen content and having a network channel is the surveillance pattern."
+    recommendation: "Review hosts for unauthorised hooks/startup entries and rotate credentials typed on them."
+
+  - id: CORR-MINER-001
+    title: Potential cryptocurrency miner
+    hypothesis: cryptominer
+    category: impact
+    severity: medium
+    min_sources: 1
+    requires:
+      - {rules: [HEUR-IMP-004, "yara:malx_core:MALX_Crypto_Miner_Configuration"]}
+      - {categories: [persistence, network, defense_evasion, packing, execution]}
+    what: "Mining pool configuration with persistence/network/evasion indicators."
+    why: "Unauthorised miners hijack compute resources and usually persist and hide."
+    recommendation: "Check CPU/GPU usage and scheduled tasks/cron on affected hosts; block mining pools."
+
+  - id: CORR-MOB-001
+    title: Potential Android banking trojan / SMS stealer
+    hypothesis: mobile_banker
+    category: mobile
+    severity: high
+    min_sources: 1
+    requires:
+      - {categories: [mobile], min_severity: high, min_count: 2}
+      - {categories: [network, mobile, packing]}
+    supporting:
+      - {types: [dex_api_reference]}
+    what: "Accessibility/device-admin/SMS capabilities that together enable account takeover on Android."
+    why: "Banking trojans combine overlays, accessibility control and SMS interception to defeat 2FA."
+    recommendation: "Do not install; if installed, revoke device admin, uninstall in safe mode, and reset banking credentials."
+
+  - id: CORR-LNX-001
+    title: Potential Linux backdoor / bot
+    hypothesis: linux_backdoor
+    category: network
+    severity: high
+    min_sources: 1
+    requires:
+      - {rules: [HEUR-LNX-001, HEUR-LNX-003, HEUR-PERS-006, HEUR-PERS-007, HEUR-PERS-008, HEUR-LNX-004]}
+      - {categories: [network, execution, persistence], min_severity: medium}
+    supporting:
+      - {categories: [packing, anti_analysis, defense_evasion]}
+    what: "Reverse shells, download-and-execute chains or Linux persistence combined with remote capability."
+    why: "These behaviours give an attacker durable remote access to Linux hosts."
+    recommendation: "Audit cron/systemd/profile files and authorized_keys on exposed hosts."
+
+  - id: CORR-WEB-001
+    title: Webshell
+    hypothesis: webshell
+    category: execution
+    severity: critical
+    min_sources: 1
+    requires:
+      - {rules: [HEUR-SCR-002, "yara:malx_core:MALX_PHP_Webshell_Generic"]}
+    supporting:
+      - {categories: [packing]}
+    what: "Server-side code executes attacker-supplied request parameters."
+    why: "A webshell gives anyone who knows its URL command execution on the web server."
+    recommendation: "Remove the file, review web server logs for requests to it, and look for further compromise."
+
+  - id: CORR-DEF-001
+    title: Defense impairment
+    hypothesis: defense_impairment
+    category: defense_evasion
+    severity: high
+    min_sources: 1
+    requires:
+      - {rules: [HEUR-EVA-005, HEUR-EVA-008, HEUR-EVA-006]}
+      - {categories: [execution, persistence, privilege, impact, injection, network], min_severity: medium}
+    what: "Security tooling is disabled/bypassed alongside other capability."
+    why: "Disabling defenses prepares the ground for the next stage."
+    recommendation: "Verify Defender/EDR health and exclusions on exposed hosts."
+
+  - id: CORR-ARC-001
+    title: Archive crafted to attack extraction tools
+    hypothesis: hostile_archive
+    category: archive
+    severity: medium
+    min_sources: 1
+    scope: artifact
+    requires:
+      - {types: [archive_path_traversal, decompression_bomb, archive_link_entries], rules: [HEUR-ARC-003], min_severity: medium}
+    what: "The archive contains traversal names, links or bomb-like expansion."
+    why: "These constructions target the software that unpacks archives rather than the end user."
+    recommendation: "Do not extract with tools that follow names/links blindly; MALX extracted it safely under internal names."

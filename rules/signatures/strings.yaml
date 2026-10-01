@@ -1,0 +1,253 @@
+# String classification signatures.
+# class: INTERESTING | SUSPICIOUS | HIGH_RISK   (unmatched strings stay NORMAL)
+# Patterns are Python regular expressions, matched case-insensitively.
+# category links the observation to a risk dimension.
+
+patterns:
+  # --- execution / LOLBins ---------------------------------------------------------
+  - tag: powershell_encoded
+    class: HIGH_RISK
+    category: execution
+    regex: 'powershell(\.exe)?["'']?\s+.*-(e|en|enc|enco|encodedcommand)\s+[A-Za-z0-9+/=]{16,}'
+    description: PowerShell launched with an encoded command line.
+  - tag: powershell_download_cradle
+    class: HIGH_RISK
+    category: execution
+    regex: '(iex|invoke-expression)\s*\(?\s*\(?\s*(new-object\s+(system\.)?net\.webclient|iwr|invoke-webrequest|irm|invoke-restmethod)|downloadstring\s*\(|downloadfile\s*\(|downloaddata\s*\('
+    description: PowerShell download-and-execute pattern.
+  - tag: powershell_stealth_flags
+    class: SUSPICIOUS
+    category: execution
+    regex: 'powershell(\.exe)?.*(-w(indowstyle)?\s+h(idden)?|-nop(rofile)?|-noni|-ep\s+bypass|-exec(utionpolicy)?\s+bypass)'
+    description: PowerShell with hidden-window / no-profile / bypass flags.
+  - tag: powershell
+    class: INTERESTING
+    category: execution
+    regex: '\bpowershell(\.exe)?\b|\bpwsh(\.exe)?\b'
+    description: Reference to PowerShell.
+  - tag: cmd_exec
+    class: INTERESTING
+    category: execution
+    regex: '\bcmd(\.exe)?\s+/[ck]\s'
+    description: Command interpreter invocation.
+  - tag: lolbin_proxy_exec
+    class: SUSPICIOUS
+    category: execution
+    regex: '\b(rundll32|regsvr32|mshta|wscript|cscript|msiexec|installutil|regasm|regsvcs|msbuild|cmstp|odbcconf|forfiles|pcalua|mavinject|wmic)(\.exe)?\b'
+    description: Reference to a binary frequently abused for proxy execution.
+  - tag: lolbin_download
+    class: HIGH_RISK
+    category: network
+    regex: 'certutil(\.exe)?\s+.*-(urlcache|decode|encode)|bitsadmin(\.exe)?\s+/transfer|curl(\.exe)?\s+.*-o\s|wget\s+.*-O\s'
+    description: Built-in tool used to download or decode payloads.
+  - tag: wmi_exec
+    class: SUSPICIOUS
+    category: execution
+    regex: 'win32_process.*create|wmic\s+.*process\s+call\s+create|root\\cimv2'
+    description: WMI process creation / WMI namespace reference.
+
+  # --- persistence ----------------------------------------------------------------
+  - tag: run_key
+    class: SUSPICIOUS
+    category: persistence
+    regex: 'software\\microsoft\\windows\\currentversion\\(run|runonce|runservices|runonceex|policies\\explorer\\run)\b'
+    description: Registry autorun (Run/RunOnce) key.
+  - tag: winlogon_key
+    class: SUSPICIOUS
+    category: persistence
+    regex: 'software\\microsoft\\windows nt\\currentversion\\(winlogon|image file execution options|windows\\appinit_dlls)'
+    description: Winlogon / IFEO / AppInit registry location.
+  - tag: startup_folder
+    class: SUSPICIOUS
+    category: persistence
+    regex: '\\start menu\\programs\\startup|\\microsoft\\windows\\start menu\\programs\\startup|shell:startup'
+    description: Startup folder path.
+  - tag: scheduled_task
+    class: SUSPICIOUS
+    category: persistence
+    regex: 'schtasks(\.exe)?\s+/create|register-scheduledtask|new-scheduledtask'
+    description: Scheduled task creation.
+  - tag: service_creation_cmd
+    class: SUSPICIOUS
+    category: persistence
+    regex: '\bsc(\.exe)?\s+(create|config)\s|new-service\s'
+    description: Service creation from the command line.
+  - tag: linux_persistence
+    class: SUSPICIOUS
+    category: persistence
+    regex: '/etc/(crontab|cron\.d|rc\.local|init\.d|systemd/system)|crontab\s+-|/\.bashrc|/\.bash_profile|/\.profile\b|/etc/profile\.d|\.config/autostart|/etc/ld\.so\.preload|authorized_keys'
+    description: Linux persistence location.
+  - tag: macos_persistence
+    class: SUSPICIOUS
+    category: persistence
+    regex: '/library/launch(agents|daemons)|launchctl\s+load'
+    description: macOS LaunchAgent / LaunchDaemon persistence.
+
+  # --- defense evasion / impact ---------------------------------------------------
+  - tag: shadow_copy_deletion
+    class: HIGH_RISK
+    category: impact
+    regex: 'vssadmin(\.exe)?\s+.*delete\s+shadows|shadowcopy\s+delete|wbadmin(\.exe)?\s+delete\s+(catalog|systemstatebackup)|bcdedit(\.exe)?\s+.*(recoveryenabled\s+no|bootstatuspolicy\s+ignoreallfailures)'
+    description: Deletes backups / shadow copies or disables recovery.
+  - tag: ransom_note
+    class: HIGH_RISK
+    category: impact
+    regex: '(all )?your (important )?files (have been|are|were) encrypted|decrypt(ion)? (tool|key|software).{0,40}(bitcoin|btc|monero|payment)|to (recover|restore) your files'
+    description: Ransom-note-like text.
+  - tag: defender_tampering
+    class: HIGH_RISK
+    category: defense_evasion
+    regex: 'add-mppreference\s+.*-exclusion|set-mppreference\s+.*-disable|disableantispyware|disablerealtimemonitoring|tamperprotection'
+    description: Microsoft Defender tampering / exclusions.
+  - tag: amsi_bypass
+    class: HIGH_RISK
+    category: defense_evasion
+    regex: 'amsiutils|amsiinitfailed|amsiscanbuffer|amsi\.dll'
+    description: AMSI bypass related strings.
+  - tag: event_log_clearing
+    class: SUSPICIOUS
+    category: defense_evasion
+    regex: 'wevtutil(\.exe)?\s+(cl|clear-log)|clear-eventlog'
+    description: Event log clearing.
+  - tag: firewall_tampering
+    class: SUSPICIOUS
+    category: defense_evasion
+    regex: 'netsh\s+(advfirewall|firewall)\s+.*(add|set|disable|off)'
+    description: Firewall configuration changes.
+  - tag: uac_bypass_hint
+    class: SUSPICIOUS
+    category: privilege
+    regex: 'fodhelper|computerdefaults|eventvwr\.exe|ms-settings\\shell\\open\\command|mscfile\\shell\\open\\command|sdclt\.exe'
+    description: Binaries/registry locations associated with UAC bypass techniques.
+
+  # --- credential access ----------------------------------------------------------
+  - tag: browser_credentials
+    class: SUSPICIOUS
+    category: credential_access
+    regex: '\\(user data\\default\\)?login data\b|\blogin data\b|\blogins\.json\b|\bkey[34]\.db\b|\bsignons\.sqlite\b|\\local state\b|\bweb data\b|\bcookies\.sqlite\b|\\network\\cookies\b'
+    description: Browser credential / cookie database location.
+  - tag: browser_profile_paths
+    class: INTERESTING
+    category: credential_access
+    regex: 'google\\chrome\\user data|microsoft\\edge\\user data|mozilla\\firefox\\profiles|bravesoftware|opera software|yandex\\yandexbrowser|\.mozilla/firefox|\.config/google-chrome|chromium'
+    description: Browser profile directory.
+  - tag: crypto_wallet_paths
+    class: SUSPICIOUS
+    category: credential_access
+    regex: '\bwallet\.dat\b|\\electrum\\wallets|\\exodus\\exodus\.wallet|\\atomic\\local storage|nkbihfbeogaeaoehlefnkodbefgpgknn|\\ethereum\\keystore|\\monero\\wallets'
+    description: Cryptocurrency wallet location / extension id.
+  - tag: lsass_reference
+    class: SUSPICIOUS
+    category: credential_access
+    regex: '\blsass(\.exe)?\b'
+    description: Reference to LSASS (credential store process).
+  - tag: credential_tool_strings
+    class: HIGH_RISK
+    category: credential_access
+    regex: 'sekurlsa::|lsadump::|kerberos::|privilege::debug|mimikatz|logonpasswords'
+    description: Strings associated with credential dumping tools.
+  - tag: unix_credential_files
+    class: SUSPICIOUS
+    category: credential_access
+    regex: '/etc/shadow\b|/\.ssh/id_(rsa|ed25519|ecdsa)\b|/\.aws/credentials\b|/\.docker/config\.json|/\.kube/config\b|/\.git-credentials\b'
+    description: Credential files on Unix-like systems.
+  - tag: messenger_tokens
+    class: SUSPICIOUS
+    category: credential_access
+    regex: '\\discord\\local storage\\leveldb|discordcanary|\\telegram desktop\\tdata|\\steam\\config\\loginusers\.vdf'
+    description: Messenger / gaming client token storage.
+
+  # --- network --------------------------------------------------------------------
+  - tag: reverse_shell
+    class: HIGH_RISK
+    category: network
+    regex: '/dev/tcp/\d|bash\s+-i\s+>&|\bnc(at)?\s+(-[a-z]*e\s|.*\s-e\s)|socat\s+.*exec:|sh\s+-i\s+2>&1|python[0-9.]*\s+-c\s+.*socket'
+    description: Reverse-shell pattern.
+  - tag: miner_pool
+    class: HIGH_RISK
+    category: impact
+    regex: 'stratum\+(tcp|ssl|tls)://|\bxmrig\b|cryptonight|--donate-level|nicehash|minexmr|supportxmr'
+    description: Cryptocurrency mining pool / miner configuration.
+  - tag: exfil_webhook
+    class: SUSPICIOUS
+    category: network
+    regex: 'discord(app)?\.com/api/webhooks/|api\.telegram\.org/bot|hooks\.slack\.com/services/'
+    description: Chat webhook / bot API (common exfiltration channel).
+  - tag: user_agent
+    class: INTERESTING
+    category: network
+    regex: 'mozilla/[45]\.0\s*\('
+    description: Hardcoded HTTP User-Agent.
+  - tag: tor_reference
+    class: SUSPICIOUS
+    category: network
+    regex: '\.onion\b|\btor\s?browser\b|socks5h?://127\.0\.0\.1:9[01]50'
+    description: Tor reference.
+  - tag: public_ip_lookup
+    class: SUSPICIOUS
+    category: discovery
+    regex: 'api\.ipify\.org|ip-api\.com|ifconfig\.me|icanhazip\.com|checkip\.(dyndns|amazonaws)\.(org|com)|ipinfo\.io|wtfismyip|myexternalip'
+    description: Public IP / geolocation lookup service.
+
+  # --- anti-analysis --------------------------------------------------------------
+  - tag: vm_detection
+    class: SUSPICIOUS
+    category: anti_analysis
+    regex: '\bvmware(service|tray|user)?\b|vboxservice|vboxtray|vbox(guest|mouse|sf|video)|virtualbox|\bqemu\b|vmtoolsd|\bxenservice\b|hyper-v|sandboxie|sbiedll\.dll|\bwine_get_unix_file_name\b|vmci\.sys|vmhgfs'
+    description: Virtual machine / sandbox artefact name.
+  - tag: analysis_tool_detection
+    class: SUSPICIOUS
+    category: anti_analysis
+    regex: '\b(ollydbg|x64dbg|x32dbg|windbg|idaq(64)?|ida64|immunitydebugger|wireshark|fiddler|procmon|procexp|processhacker|tcpview|autoruns|pestudio|dnspy|ghidra|httpdebugger)(\.exe)?\b'
+    description: Analysis / debugging tool name (process blacklist pattern).
+  - tag: sandbox_usernames
+    class: SUSPICIOUS
+    category: anti_analysis
+    regex: '\b(cuckoo(sandbox)?|cuckoomon|hapubws|maltest|wdagutilityaccount|joe ?sandbox|any\.run|threatexpert|vmsandbox)\b'
+    description: Usernames/hostnames commonly checked to detect sandboxes.
+
+  # --- discovery ------------------------------------------------------------------
+  - tag: recon_commands
+    class: INTERESTING
+    category: discovery
+    regex: '\b(whoami|ipconfig\s*/all|systeminfo|net\s+(user|group|localgroup|view|share)|nltest|arp\s+-a|tasklist|netstat\s+-an|quser|uname\s+-a|id\s*;|cat\s+/etc/passwd)\b'
+    description: Reconnaissance command.
+
+  # --- encoded payloads -----------------------------------------------------------
+  - tag: base64_pe
+    class: HIGH_RISK
+    category: packing
+    regex: '\bTVqQAAMAAAAEAAAA|\bTVpQAAIAAAAEAA|\bTVoAAAAAAAAAAAAA|\bTVroAAAAAAAAAAAA'
+    description: Base64-encoded PE header (MZ) embedded in text.
+  - tag: hex_pe
+    class: SUSPICIOUS
+    category: packing
+    regex: '4d5a90000300000004000000ffff0000'
+    description: Hex-encoded PE header.
+  - tag: base64_blob
+    class: INTERESTING
+    category: packing
+    regex: '^[A-Za-z0-9+/]{80,}={0,2}$'
+    description: Long base64-looking blob (possible encoded configuration or payload).
+  - tag: obfuscation_functions
+    class: SUSPICIOUS
+    category: packing
+    regex: 'string\.fromcharcode|\bunescape\s*\(|\batob\s*\(|frombase64string|\bchrw?\(\s*\d+\s*\)\s*&|-join\s*\[char|\[char\]\s*\d+|\bstrreverse\b'
+    description: Script obfuscation helper.
+
+  # --- misc -----------------------------------------------------------------------
+  - tag: pdb_path
+    class: INTERESTING
+    category: structure
+    regex: '[a-z]:\\.*\.pdb$|/.*\.pdb$'
+    description: Debug symbol (PDB) path — can leak build environment details.
+  - tag: private_key
+    class: SUSPICIOUS
+    category: secret
+    regex: '-----begin ((rsa|dsa|ec|openssh|encrypted) )?private key-----'
+    description: Embedded private key.
+  - tag: mutex_like
+    class: INTERESTING
+    category: structure
+    regex: '^(global|local)\\[a-z0-9_{}.\-]{4,}$'
+    description: Named kernel object (mutex-like) used for single-instance checks.

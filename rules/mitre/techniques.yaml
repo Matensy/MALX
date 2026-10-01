@@ -1,0 +1,97 @@
+# MITRE ATT&CK techniques referenced by MALX rules (offline subset).
+# Mapping only happens when a rule with evidence references the technique.
+# Source: https://attack.mitre.org/ (Enterprise and Mobile matrices)
+
+techniques:
+  - {id: T1003.001, name: "OS Credential Dumping: LSASS Memory", tactics: [credential-access]}
+  - {id: T1003.002, name: "OS Credential Dumping: Security Account Manager", tactics: [credential-access]}
+  - {id: T1016, name: "System Network Configuration Discovery", tactics: [discovery]}
+  - {id: T1027, name: "Obfuscated Files or Information", tactics: [defense-evasion]}
+  - {id: T1027.002, name: "Obfuscated Files or Information: Software Packing", tactics: [defense-evasion]}
+  - {id: T1027.006, name: "Obfuscated Files or Information: HTML Smuggling", tactics: [defense-evasion]}
+  - {id: T1033, name: "System Owner/User Discovery", tactics: [discovery]}
+  - {id: T1036, name: "Masquerading", tactics: [defense-evasion]}
+  - {id: T1036.002, name: "Masquerading: Right-to-Left Override", tactics: [defense-evasion]}
+  - {id: T1036.007, name: "Masquerading: Double File Extension", tactics: [defense-evasion]}
+  - {id: T1036.008, name: "Masquerading: Masquerade File Type", tactics: [defense-evasion]}
+  - {id: T1037.004, name: "Boot or Logon Initialization Scripts: RC Scripts", tactics: [persistence, privilege-escalation]}
+  - {id: T1041, name: "Exfiltration Over C2 Channel", tactics: [exfiltration]}
+  - {id: T1047, name: "Windows Management Instrumentation", tactics: [execution]}
+  - {id: T1053.003, name: "Scheduled Task/Job: Cron", tactics: [execution, persistence, privilege-escalation]}
+  - {id: T1053.005, name: "Scheduled Task/Job: Scheduled Task", tactics: [execution, persistence, privilege-escalation]}
+  - {id: T1055, name: "Process Injection", tactics: [defense-evasion, privilege-escalation]}
+  - {id: T1055.001, name: "Process Injection: Dynamic-link Library Injection", tactics: [defense-evasion, privilege-escalation]}
+  - {id: T1055.002, name: "Process Injection: Portable Executable Injection", tactics: [defense-evasion, privilege-escalation]}
+  - {id: T1055.004, name: "Process Injection: Asynchronous Procedure Call", tactics: [defense-evasion, privilege-escalation]}
+  - {id: T1055.012, name: "Process Injection: Process Hollowing", tactics: [defense-evasion, privilege-escalation]}
+  - {id: T1056.001, name: "Input Capture: Keylogging", tactics: [collection, credential-access]}
+  - {id: T1057, name: "Process Discovery", tactics: [discovery]}
+  - {id: T1059, name: "Command and Scripting Interpreter", tactics: [execution]}
+  - {id: T1059.001, name: "Command and Scripting Interpreter: PowerShell", tactics: [execution]}
+  - {id: T1059.003, name: "Command and Scripting Interpreter: Windows Command Shell", tactics: [execution]}
+  - {id: T1059.004, name: "Command and Scripting Interpreter: Unix Shell", tactics: [execution]}
+  - {id: T1059.005, name: "Command and Scripting Interpreter: Visual Basic", tactics: [execution]}
+  - {id: T1059.006, name: "Command and Scripting Interpreter: Python", tactics: [execution]}
+  - {id: T1059.007, name: "Command and Scripting Interpreter: JavaScript", tactics: [execution]}
+  - {id: T1070.001, name: "Indicator Removal: Clear Windows Event Logs", tactics: [defense-evasion]}
+  - {id: T1070.004, name: "Indicator Removal: File Deletion", tactics: [defense-evasion]}
+  - {id: T1071.001, name: "Application Layer Protocol: Web Protocols", tactics: [command-and-control]}
+  - {id: T1082, name: "System Information Discovery", tactics: [discovery]}
+  - {id: T1083, name: "File and Directory Discovery", tactics: [discovery]}
+  - {id: T1087, name: "Account Discovery", tactics: [discovery]}
+  - {id: T1090.003, name: "Proxy: Multi-hop Proxy", tactics: [command-and-control]}
+  - {id: T1098.004, name: "Account Manipulation: SSH Authorized Keys", tactics: [persistence, privilege-escalation]}
+  - {id: T1102, name: "Web Service", tactics: [command-and-control]}
+  - {id: T1105, name: "Ingress Tool Transfer", tactics: [command-and-control]}
+  - {id: T1106, name: "Native API", tactics: [execution]}
+  - {id: T1112, name: "Modify Registry", tactics: [defense-evasion, persistence]}
+  - {id: T1113, name: "Screen Capture", tactics: [collection]}
+  - {id: T1115, name: "Clipboard Data", tactics: [collection]}
+  - {id: T1129, name: "Shared Modules", tactics: [execution]}
+  - {id: T1134, name: "Access Token Manipulation", tactics: [defense-evasion, privilege-escalation]}
+  - {id: T1140, name: "Deobfuscate/Decode Files or Information", tactics: [defense-evasion]}
+  - {id: T1197, name: "BITS Jobs", tactics: [defense-evasion, persistence]}
+  - {id: T1203, name: "Exploitation for Client Execution", tactics: [execution]}
+  - {id: T1204.002, name: "User Execution: Malicious File", tactics: [execution]}
+  - {id: T1218.005, name: "System Binary Proxy Execution: Mshta", tactics: [defense-evasion]}
+  - {id: T1218.007, name: "System Binary Proxy Execution: Msiexec", tactics: [defense-evasion]}
+  - {id: T1218.010, name: "System Binary Proxy Execution: Regsvr32", tactics: [defense-evasion]}
+  - {id: T1218.011, name: "System Binary Proxy Execution: Rundll32", tactics: [defense-evasion]}
+  - {id: T1219, name: "Remote Access Software", tactics: [command-and-control]}
+  - {id: T1221, name: "Template Injection", tactics: [defense-evasion]}
+  - {id: T1486, name: "Data Encrypted for Impact", tactics: [impact]}
+  - {id: T1490, name: "Inhibit System Recovery", tactics: [impact]}
+  - {id: T1496, name: "Resource Hijacking", tactics: [impact]}
+  - {id: T1497.001, name: "Virtualization/Sandbox Evasion: System Checks", tactics: [defense-evasion, discovery]}
+  - {id: T1497.003, name: "Virtualization/Sandbox Evasion: Time Based Evasion", tactics: [defense-evasion, discovery]}
+  - {id: T1505.003, name: "Server Software Component: Web Shell", tactics: [persistence]}
+  - {id: T1518.001, name: "Software Discovery: Security Software Discovery", tactics: [discovery]}
+  - {id: T1539, name: "Steal Web Session Cookie", tactics: [credential-access]}
+  - {id: T1543.002, name: "Create or Modify System Process: Systemd Service", tactics: [persistence, privilege-escalation]}
+  - {id: T1543.003, name: "Create or Modify System Process: Windows Service", tactics: [persistence, privilege-escalation]}
+  - {id: T1546.004, name: "Event Triggered Execution: Unix Shell Configuration Modification", tactics: [persistence, privilege-escalation]}
+  - {id: T1547.001, name: "Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder", tactics: [persistence, privilege-escalation]}
+  - {id: T1547.004, name: "Boot or Logon Autostart Execution: Winlogon Helper DLL", tactics: [persistence, privilege-escalation]}
+  - {id: T1548.002, name: "Abuse Elevation Control Mechanism: Bypass User Account Control", tactics: [privilege-escalation, defense-evasion]}
+  - {id: T1552.001, name: "Unsecured Credentials: Credentials In Files", tactics: [credential-access]}
+  - {id: T1552.004, name: "Unsecured Credentials: Private Keys", tactics: [credential-access]}
+  - {id: T1555, name: "Credentials from Password Stores", tactics: [credential-access]}
+  - {id: T1555.003, name: "Credentials from Password Stores: Credentials from Web Browsers", tactics: [credential-access]}
+  - {id: T1555.004, name: "Credentials from Password Stores: Windows Credential Manager", tactics: [credential-access]}
+  - {id: T1559.002, name: "Inter-Process Communication: Dynamic Data Exchange", tactics: [execution]}
+  - {id: T1562.001, name: "Impair Defenses: Disable or Modify Tools", tactics: [defense-evasion]}
+  - {id: T1562.004, name: "Impair Defenses: Disable or Modify System Firewall", tactics: [defense-evasion]}
+  - {id: T1566.001, name: "Phishing: Spearphishing Attachment", tactics: [initial-access]}
+  - {id: T1567, name: "Exfiltration Over Web Service", tactics: [exfiltration]}
+  - {id: T1568, name: "Dynamic Resolution", tactics: [command-and-control]}
+  - {id: T1571, name: "Non-Standard Port", tactics: [command-and-control]}
+  - {id: T1574.006, name: "Hijack Execution Flow: Dynamic Linker Hijacking", tactics: [persistence, privilege-escalation, defense-evasion]}
+  - {id: T1620, name: "Reflective Code Loading", tactics: [defense-evasion]}
+  - {id: T1622, name: "Debugger Evasion", tactics: [defense-evasion, discovery]}
+  # Mobile
+  - {id: T1407, name: "Download New Code at Runtime", tactics: [defense-evasion], matrix: mobile}
+  - {id: T1517, name: "Access Notifications", tactics: [collection, credential-access], matrix: mobile}
+  - {id: T1582, name: "SMS Control", tactics: [impact], matrix: mobile}
+  - {id: T1624.001, name: "Event Triggered Execution: Broadcast Receivers", tactics: [persistence], matrix: mobile}
+  - {id: T1626.001, name: "Abuse Elevation Control Mechanism: Device Administrator Permissions", tactics: [privilege-escalation], matrix: mobile}
+  - {id: T1636.004, name: "Protected User Data: SMS Messages", tactics: [collection], matrix: mobile}

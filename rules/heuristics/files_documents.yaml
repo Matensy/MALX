@@ -1,0 +1,167 @@
+rules:
+  - id: HEUR-FILE-001
+    name: Executable disguised by extension
+    category: defense_evasion
+    severity: high
+    confidence: 0.8
+    reliability: high
+    conditions:
+      all:
+        - extension_mismatch: true
+        - file_type: [pe, elf, macho, dos, lnk, hta, script]
+        - extension_in: [.pdf, .doc, .docx, .xls, .xlsx, .ppt, .pptx, .txt, .rtf, .jpg, .jpeg, .png, .gif, .bmp, .mp3, .mp4, .avi, .mov, .csv, .zip]
+    explanation: "The file claims to be a document/media file but its content is executable code."
+    legitimate: "Practically none; occasionally misnamed downloads."
+    mitre: [T1036.008]
+
+  - id: HEUR-FILE-002
+    name: Double file extension
+    category: defense_evasion
+    severity: medium
+    confidence: 0.7
+    conditions:
+      double_extension: true
+    explanation: "Names like 'invoice.pdf.exe' rely on hidden extensions to trick users."
+    legitimate: "Rare; some backup tools append extensions."
+    mitre: [T1036.007]
+
+  - id: HEUR-FILE-003
+    name: Right-to-left override in filename
+    category: defense_evasion
+    severity: high
+    confidence: 0.85
+    conditions:
+      name_issues_any: [bidi_override]
+    explanation: "The filename contains Unicode bidirectional override characters that visually reverse part of the name."
+    legitimate: "Essentially none for distributed files."
+    mitre: [T1036.002]
+
+  - id: HEUR-FILE-004
+    name: Executable inside an archive with a lure name
+    category: defense_evasion
+    severity: medium
+    confidence: 0.55
+    conditions:
+      all:
+        - in_archive: true
+        - file_type: [pe, lnk, hta, script]
+        - name_regex: '(?i)(invoice|payment|receipt|order|shipping|delivery|document|scan|statement|contract|resume|cv|urgent|fatura|boleto|nota|pedido|comprovante|factura|rechnung)'
+    explanation: "An executable or script with a business-document-like name is delivered inside an archive — a common phishing pattern."
+    legitimate: "Legitimate invoicing software may carry such names."
+    mitre: [T1204.002, T1566.001]
+
+  - id: HEUR-FILE-005
+    name: Shortcut / script dropped from archive
+    category: execution
+    severity: medium
+    confidence: 0.5
+    conditions:
+      all:
+        - in_archive: true
+        - file_type: [lnk, hta, script]
+        - any:
+            - evidence_category_count: {category: execution, min: 1}
+            - evidence_category_count: {category: network, min: 1}
+    explanation: "A shortcut or script inside an archive carries execution or network indicators."
+    legitimate: "Software bundles ship helper scripts."
+    mitre: [T1204.002]
+
+  - id: HEUR-DOC-001
+    name: Auto-executing macro with download or execution
+    category: document
+    severity: critical
+    confidence: 0.8
+    conditions:
+      all:
+        - evidence_any: [vba_autoexec]
+        - evidence_any: [vba_execution, vba_download, vba_shellcode_runner]
+    explanation: "A macro runs automatically when the document opens and executes commands, downloads content or runs shellcode."
+    legitimate: "Internal business automation occasionally combines auto-open with shell calls."
+    mitre: [T1204.002, T1059.005]
+
+  - id: HEUR-DOC-002
+    name: Document exploit-like structure
+    category: document
+    severity: high
+    confidence: 0.65
+    conditions:
+      evidence_any: [ole_equation_editor, rtf_auto_update, ooxml_external_ole]
+    explanation: "The document contains structures historically used by exploits (Equation Editor objects, auto-updating OLE links, remote OLE)."
+    legitimate: "Old documents with equations or linked objects."
+    mitre: [T1203]
+
+  - id: HEUR-DOC-003
+    name: Remote template injection
+    category: document
+    severity: high
+    confidence: 0.75
+    conditions:
+      evidence_any: [ooxml_template_injection, rtf_template_injection]
+    explanation: "The document loads a remote template when opened, which can deliver macros without containing them."
+    legitimate: "Corporate templates on intranet servers."
+    mitre: [T1221]
+
+  - id: HEUR-DOC-004
+    name: PDF with automatic JavaScript or launch action
+    category: document
+    severity: high
+    confidence: 0.65
+    conditions:
+      any:
+        - all:
+            - evidence_any: [pdf_javascript]
+            - evidence_any: [pdf_auto_action, pdf_launch_action, pdf_obfuscated_names, pdf_embedded_file]
+        - evidence_any: [pdf_launch_action]
+    explanation: "PDF JavaScript triggered automatically or combined with embedded files/obfuscation, or a /Launch action."
+    legitimate: "Interactive forms use JavaScript; auto-run plus obfuscation is uncommon."
+    mitre: [T1204.002, T1059.007]
+
+  - id: HEUR-DOC-005
+    name: Document with embedded executable content
+    category: document
+    severity: high
+    confidence: 0.6
+    conditions:
+      all:
+        - file_type: [ooxml, ole, rtf, pdf, odf]
+        - child_type_any: [pe, elf, lnk, hta, script, dos]
+    explanation: "An executable or script was extracted from inside a document."
+    legitimate: "Technical documents rarely embed binaries."
+    mitre: [T1204.002]
+
+  - id: HEUR-ARC-001
+    name: Archive delivering executable content
+    category: archive
+    severity: low
+    confidence: 0.4
+    conditions:
+      all:
+        - file_type: [zip, 7z, tar, gzip, rar]
+        - child_type_any: [pe, lnk, hta, script, dos, elf]
+    explanation: "The archive contains executables or scripts (inspected individually)."
+    legitimate: "Software distribution archives contain executables by design."
+    mitre: []
+
+  - id: HEUR-ARC-002
+    name: Encrypted archive with executable content
+    category: defense_evasion
+    severity: medium
+    confidence: 0.55
+    conditions:
+      all:
+        - evidence_any: [archive_encrypted]
+        - child_type_any: [pe, lnk, hta, script, dos]
+    explanation: "Password protection keeps gateways from inspecting the executable inside — a classic phishing delivery."
+    legitimate: "Malware researchers and some vendors share protected archives."
+    mitre: [T1027]
+
+  - id: HEUR-ARC-003
+    name: Archive crafted against extractors
+    category: archive
+    severity: high
+    confidence: 0.75
+    conditions:
+      evidence_any: [archive_path_traversal, decompression_bomb, archive_link_entries]
+    explanation: "The archive carries path traversal names, links or decompression-bomb characteristics aimed at the tools that unpack it."
+    legitimate: "Test fixtures for security tooling."
+    mitre: []

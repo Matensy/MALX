@@ -1,0 +1,146 @@
+rules:
+  - id: HEUR-IMP-001
+    name: Backup / shadow copy destruction
+    category: impact
+    severity: critical
+    confidence: 0.8
+    reliability: high
+    conditions:
+      string_tags_any: [shadow_copy_deletion]
+    explanation: "Shadow copies or backups are deleted / recovery disabled — a step ransomware takes before encrypting."
+    legitimate: "Backup software prunes old snapshots, normally through its own APIs rather than these commands."
+    mitre: [T1490]
+
+  - id: HEUR-IMP-002
+    name: Ransom note language
+    category: impact
+    severity: high
+    confidence: 0.7
+    conditions:
+      string_tags_any: [ransom_note]
+    explanation: "Text instructing the victim how to pay to recover encrypted files."
+    legitimate: "Security training material and research samples."
+    mitre: [T1486]
+
+  - id: HEUR-IMP-003
+    name: Bulk file encryption capability
+    category: impact
+    severity: high
+    confidence: 0.55
+    applies_to: [pe, elf]
+    conditions:
+      all:
+        - imports_any: [CryptEncrypt, BCryptEncrypt, CryptGenKey, BCryptGenerateSymmetricKey, EVP_EncryptInit_ex, EVP_EncryptUpdate]
+        - imports_any: [FindFirstFileA, FindFirstFileW, FindFirstFileExW, FindNextFileW, opendir, readdir, nftw]
+        - any:
+            - imports_any: [MoveFileExA, MoveFileExW, MoveFileW, rename, DeleteFileW, DeleteFileA, GetLogicalDrives, GetDriveTypeW]
+            - string_tags_any: [ransom_note, shadow_copy_deletion]
+    explanation: "Encryption APIs combined with file-system traversal and renaming/drive enumeration — the core loop of file-encrypting ransomware."
+    legitimate: "Backup, archiving and disk-encryption tools have the same building blocks."
+    mitre: [T1486, T1083]
+
+  - id: HEUR-IMP-004
+    name: Cryptocurrency mining
+    category: impact
+    severity: high
+    confidence: 0.75
+    conditions:
+      string_tags_any: [miner_pool]
+    explanation: "Mining pool URLs or miner configuration are embedded."
+    legitimate: "Legitimate miners installed deliberately by the owner."
+    mitre: [T1496]
+
+  - id: HEUR-IMP-005
+    name: Ransom payment wallet
+    category: impact
+    severity: medium
+    confidence: 0.5
+    conditions:
+      all:
+        - ioc_any: [crypto_wallet]
+        - any:
+            - string_tags_any: [ransom_note]
+            - strings_any: ["bitcoin", "btc", "monero", "xmr", "payment", "decrypt"]
+    explanation: "A cryptocurrency address appears next to payment/decryption wording."
+    legitimate: "Donation addresses in open-source software."
+    mitre: [T1486]
+
+  - id: HEUR-DISC-001
+    name: Host reconnaissance commands
+    category: discovery
+    severity: low
+    confidence: 0.45
+    conditions:
+      string_tags_count: {any: [recon_commands], min: 1}
+    explanation: "Commands enumerating users, groups, network configuration or processes."
+    legitimate: "Diagnostic tools and admin scripts."
+    mitre: [T1082, T1033, T1016]
+
+  - id: HEUR-DISC-002
+    name: Extensive system profiling
+    category: discovery
+    severity: low
+    confidence: 0.4
+    applies_to: [pe]
+    conditions:
+      at_least:
+        n: 4
+        of:
+          - imports_any: [GetComputerNameA, GetComputerNameW, GetComputerNameExW]
+          - imports_any: [GetUserNameA, GetUserNameW]
+          - imports_any: [GetVersionExA, GetVersionExW, RtlGetVersion]
+          - imports_any: [GetAdaptersInfo, GetAdaptersAddresses]
+          - imports_any: [GetSystemInfo, GetNativeSystemInfo, GlobalMemoryStatusEx]
+          - imports_any: [CreateToolhelp32Snapshot, EnumProcesses]
+          - imports_any: [GetKeyboardLayoutList, GetUserDefaultLangID, GetLocaleInfoA, GetLocaleInfoW]
+    explanation: "Collects a broad host fingerprint (name, user, OS, network, memory, processes, locale) — typical of bot check-in or stealer reports."
+    legitimate: "Telemetry, licensing and support tools collect the same data."
+    mitre: [T1082, T1057]
+
+  - id: HEUR-DISC-003
+    name: Keyboard-layout / locale geofencing
+    category: discovery
+    severity: low
+    confidence: 0.45
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [GetKeyboardLayoutList, GetUserDefaultUILanguage, GetSystemDefaultLangID, GetUserDefaultLangID]
+        - evidence_category_count: {category: anti_analysis, min: 1}
+    explanation: "Locale/keyboard checks next to anti-analysis evidence suggest the sample refuses to run in some regions."
+    legitimate: "Localised software reads the locale."
+    mitre: [T1082]
+
+  - id: HEUR-COLL-001
+    name: Screen capture capability
+    category: collection
+    severity: low
+    confidence: 0.4
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [BitBlt, PrintWindow]
+        - imports_any: [GetDC, GetWindowDC, GetDesktopWindow]
+        - imports_any: [CreateCompatibleBitmap, GetDIBits]
+        - any:
+            - evidence_category_count: {category: network, min: 1}
+            - ioc_count: {type: url, min: 1}
+    explanation: "Desktop capture primitives in a binary that also has network indicators."
+    legitimate: "Screenshot, remote-support and recording tools."
+    mitre: [T1113]
+
+  - id: HEUR-COLL-002
+    name: Clipboard monitoring / hijacking
+    category: collection
+    severity: medium
+    confidence: 0.5
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [GetClipboardData, AddClipboardFormatListener, SetClipboardViewer]
+        - any:
+            - imports_any: [SetClipboardData]
+            - ioc_any: [crypto_wallet]
+    explanation: "Reads (and replaces) clipboard content; with wallet addresses this is the 'clipper' pattern."
+    legitimate: "Clipboard managers."
+    mitre: [T1115]

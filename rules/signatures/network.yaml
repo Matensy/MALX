@@ -1,0 +1,89 @@
+# Network context lists used by the IOC engine and heuristics.
+# These lists provide *context*. A domain on "suspicious_services" is not malicious
+# by itself; a domain on "common" is not trustworthy by itself either.
+
+common_domains:
+  # Well-known references that appear in legitimate binaries/documents (schemas,
+  # certificate infrastructure, vendor sites). IOCs on these are flagged "common".
+  - microsoft.com
+  - windows.com
+  - windowsupdate.com
+  - msftncsi.com
+  - live.com
+  - office.com
+  - office365.com
+  - msn.com
+  - bing.com
+  - w3.org
+  - xmlsoap.org
+  - openxmlformats.org
+  - purl.org
+  - adobe.com
+  - apple.com
+  - digicert.com
+  - verisign.com
+  - symantec.com
+  - symcb.com
+  - symcd.com
+  - thawte.com
+  - geotrust.com
+  - globalsign.com
+  - globalsign.net
+  - sectigo.com
+  - comodoca.com
+  - usertrust.com
+  - entrust.net
+  - godaddy.com
+  - letsencrypt.org
+  - identrust.com
+  - mozilla.org
+  - python.org
+  - gnu.org
+  - apache.org
+  - oracle.com
+  - java.com
+  - sun.com
+  - google.com
+  - gstatic.com
+  - googleapis.com
+  - android.com
+  - schema.org
+  - json-schema.org
+  - xml.org
+  - oasis-open.org
+  - ietf.org
+  - unicode.org
+  - example.com
+  - example.org
+  - example.net
+  - localhost
+  - openssl.org
+  - zlib.net
+  - sqlite.org
+  - qt.io
+  - nsis.sourceforge.io
+  - jrsoftware.org
+  - npmjs.org
+  - npmjs.com
+  - pypi.org
+  - nuget.org
+  - golang.org
+  - rust-lang.org
+
+suspicious_services:
+  # Infrastructure frequently abused for payload hosting, C2 or exfiltration — also
+  # widely used legitimately. Matching raises attention, never a verdict.
+  paste_sites: [pastebin.com, paste.ee, hastebin.com, ghostbin.co, rentry.co, controlc.com, pastes.io, paste.rs, termbin.com]
+  file_sharing: [transfer.sh, anonfiles.com, file.io, gofile.io, mega.nz, mediafire.com, sendspace.com, catbox.moe, uguu.se, temp.sh, bashupload.com]
+  chat_api: [discord.com, discordapp.com, cdn.discordapp.com, api.telegram.org, t.me, hooks.slack.com]
+  tunnels: [ngrok.io, ngrok-free.app, ngrok.app, trycloudflare.com, serveo.net, localtunnel.me, loca.lt, portmap.io, pinggy.io]
+  dynamic_dns: [duckdns.org, ddns.net, no-ip.org, no-ip.com, noip.com, hopto.org, zapto.org, sytes.net, servebeer.com, serveftp.com, myftp.biz, myftp.org, dyndns.org, dynu.com, freedns.afraid.org, chickenkiller.com, mooo.com, linkpc.net, publicvm.com, kozow.com, ddnsking.com, 3utilities.com, bounceme.net, gotdns.ch, dnsalias.com, homeip.net, webhop.me]
+  url_shorteners: [bit.ly, tinyurl.com, is.gd, t.co, goo.gl, ow.ly, cutt.ly, rb.gy, shorturl.at]
+  ip_lookup: [api.ipify.org, ipify.org, ip-api.com, ifconfig.me, icanhazip.com, checkip.dyndns.org, ipinfo.io, wtfismyip.com, myexternalip.com, ipwho.is, checkip.amazonaws.com]
+  code_hosting: [raw.githubusercontent.com, gist.githubusercontent.com, objects.githubusercontent.com, bitbucket.org, gitlab.com]
+  free_hosting: [000webhostapp.com, weebly.com, glitch.me, firebaseapp.com, web.app, pages.dev, workers.dev, netlify.app, vercel.app, herokuapp.com, repl.co]
+  logger: [iplogger.org, iplogger.com, grabify.link, 2no.co, blasze.com]
+
+suspicious_tlds: [zip, mov, top, xyz, tk, ml, ga, cf, gq, pw, icu, cyou, rest, monster, buzz, click, country, kim, work, su, ru, cn, bit]
+
+unusual_ports: [4444, 1337, 31337, 6666, 6667, 6697, 8888, 9001, 9050, 9150, 5555, 7777, 12345, 54321, 3333, 14444, 45700, 2222, 1604, 5552, 4782, 7707, 8808]

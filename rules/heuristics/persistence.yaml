@@ -1,0 +1,131 @@
+rules:
+  - id: HEUR-PERS-001
+    name: Registry autorun persistence
+    category: persistence
+    severity: high
+    confidence: 0.65
+    conditions:
+      all:
+        - string_tags_any: [run_key]
+        - any:
+            - imports_any: [RegSetValueExA, RegSetValueExW, RegCreateKeyExA, RegCreateKeyExW, RegSetKeyValueA, RegSetKeyValueW]
+            - strings_any: ["reg add", "regwrite", "set-itemproperty", "new-itemproperty", "reg.exe"]
+            - file_type: [reg, script]
+    explanation: "The artifact references a Run/RunOnce key and has a way to write it (registry APIs or commands)."
+    legitimate: "Applications that start with Windows (updaters, tray apps) register Run keys."
+    mitre: [T1547.001, T1112]
+
+  - id: HEUR-PERS-002
+    name: Startup folder persistence
+    category: persistence
+    severity: medium
+    confidence: 0.6
+    conditions:
+      all:
+        - string_tags_any: [startup_folder]
+        - any:
+            - imports_any: [CopyFileA, CopyFileW, CopyFileExW, MoveFileExA, MoveFileExW, CreateFileA, CreateFileW]
+            - file_type: [script, lnk]
+            - strings_any: ["copy ", "copy-item", "move-item", ".lnk"]
+    explanation: "The artifact references the Startup folder and can write files to it."
+    legitimate: "Some software installs shortcuts in Startup."
+    mitre: [T1547.001]
+
+  - id: HEUR-PERS-003
+    name: Scheduled task creation
+    category: persistence
+    severity: medium
+    confidence: 0.65
+    conditions:
+      string_tags_any: [scheduled_task]
+    explanation: "A scheduled task is created from a command line or PowerShell."
+    legitimate: "Updaters and maintenance tools create scheduled tasks."
+    mitre: [T1053.005]
+
+  - id: HEUR-PERS-004
+    name: Windows service installation
+    category: persistence
+    severity: medium
+    confidence: 0.55
+    applies_to: [pe, script]
+    conditions:
+      any:
+        - all:
+            - imports_any: [CreateServiceA, CreateServiceW]
+            - imports_any: [StartServiceA, StartServiceW, OpenSCManagerA, OpenSCManagerW]
+        - string_tags_any: [service_creation_cmd]
+    explanation: "The artifact can create and start Windows services."
+    legitimate: "Service installers, drivers and system tools."
+    mitre: [T1543.003]
+
+  - id: HEUR-PERS-005
+    name: Winlogon / IFEO / AppInit hijack locations
+    category: persistence
+    severity: high
+    confidence: 0.6
+    conditions:
+      string_tags_any: [winlogon_key]
+    explanation: "References to Winlogon Shell/Userinit, Image File Execution Options or AppInit_DLLs, which execute code at logon or process start."
+    legitimate: "Security products and accessibility tools sometimes configure these keys."
+    mitre: [T1547.004, T1112]
+
+  - id: HEUR-PERS-006
+    name: Linux persistence mechanism
+    category: persistence
+    severity: medium
+    confidence: 0.55
+    conditions:
+      all:
+        - string_tags_any: [linux_persistence]
+        - any:
+            - file_type: [elf, script]
+            - imports_any: [fopen, open, write, system, execve, popen]
+    explanation: "References to cron, rc.local, systemd units, shell profiles, ld.so.preload or authorized_keys in an executable or script."
+    legitimate: "Installers and configuration management write these files."
+    mitre: [T1053.003, T1543.002, T1546.004, T1037.004]
+
+  - id: HEUR-PERS-007
+    name: Dynamic linker preload hijack
+    category: persistence
+    severity: high
+    confidence: 0.7
+    conditions:
+      strings_any: ["/etc/ld.so.preload"]
+    explanation: "Writing /etc/ld.so.preload injects a library into every dynamically linked process — a userland rootkit technique."
+    legitimate: "Very rare outside debugging/instrumentation."
+    mitre: [T1574.006]
+
+  - id: HEUR-PERS-008
+    name: SSH authorized_keys manipulation
+    category: persistence
+    severity: medium
+    confidence: 0.55
+    conditions:
+      all:
+        - strings_any: ["authorized_keys"]
+        - strings_any: ["ssh-rsa ", "ssh-ed25519 ", "echo ", ">>", "chmod 600"]
+    explanation: "The artifact writes keys to authorized_keys, granting persistent SSH access."
+    legitimate: "Provisioning scripts install keys for administrators."
+    mitre: [T1098.004]
+
+  - id: HEUR-PERS-009
+    name: macOS LaunchAgent persistence
+    category: persistence
+    severity: medium
+    confidence: 0.55
+    conditions:
+      string_tags_any: [macos_persistence]
+    explanation: "References LaunchAgents/LaunchDaemons or launchctl load."
+    legitimate: "Many macOS apps install launch agents for helpers."
+    mitre: [T1543.002]
+
+  - id: HEUR-PERS-010
+    name: BITS job persistence/download
+    category: persistence
+    severity: medium
+    confidence: 0.5
+    conditions:
+      strings_any: ["bitsadmin /create", "bitsadmin /addfile", "start-bitstransfer", "bitsadmin /setnotifycmdline"]
+    explanation: "BITS jobs can download files and run commands when complete, surviving reboots."
+    legitimate: "Windows Update and some updaters rely on BITS."
+    mitre: [T1197]

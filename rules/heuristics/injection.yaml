@@ -1,0 +1,90 @@
+rules:
+  - id: HEUR-INJ-001
+    name: Remote process injection API set
+    category: injection
+    severity: high
+    confidence: 0.65
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [VirtualAllocEx, NtAllocateVirtualMemory, ZwAllocateVirtualMemory]
+        - imports_any: [WriteProcessMemory, NtWriteVirtualMemory, ZwWriteVirtualMemory]
+        - imports_any: [CreateRemoteThread, CreateRemoteThreadEx, NtCreateThreadEx, RtlCreateUserThread, QueueUserAPC, NtQueueApcThread]
+    explanation: "The import table contains the full allocate → write → execute chain needed to run code in another process."
+    legitimate: "Debuggers, game overlays, accessibility and security products inject into processes."
+    mitre: [T1055, T1055.002]
+
+  - id: HEUR-INJ-002
+    name: Process hollowing API set
+    category: injection
+    severity: high
+    confidence: 0.7
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [NtUnmapViewOfSection, ZwUnmapViewOfSection]
+        - imports_any: [SetThreadContext, Wow64SetThreadContext, NtSetContextThread]
+        - imports_any: [ResumeThread, NtResumeThread]
+    explanation: "Unmapping a section, rewriting a thread context and resuming it is the process hollowing recipe."
+    legitimate: "Uncommon in ordinary software; some protectors/emulators use parts of it."
+    mitre: [T1055.012]
+
+  - id: HEUR-INJ-003
+    name: APC injection primitives
+    category: injection
+    severity: medium
+    confidence: 0.55
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [QueueUserAPC, NtQueueApcThread, NtQueueApcThreadEx]
+        - imports_any: [OpenThread, CreateProcessA, CreateProcessW, NtOpenThread]
+        - imports_any: [WriteProcessMemory, NtWriteVirtualMemory, VirtualAllocEx]
+    explanation: "Queueing APCs to threads of another process after writing memory into it."
+    legitimate: "Rare outside instrumentation frameworks."
+    mitre: [T1055.004]
+
+  - id: HEUR-INJ-004
+    name: Self-modifying / shellcode staging layout
+    category: injection
+    severity: medium
+    confidence: 0.5
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [VirtualAlloc, VirtualAllocEx, NtAllocateVirtualMemory]
+        - imports_any: [VirtualProtect, VirtualProtectEx, NtProtectVirtualMemory]
+        - any:
+            - evidence_any: [pe_high_entropy_section, pe_encrypted_resource, pe_overlay, pe_rwx_section]
+            - imports_any: [CreateThread, EnumSystemLocalesA, EnumWindows, CreateFiber, ConvertThreadToFiber]
+    explanation: "Allocation plus protection changes next to encrypted data or callback-based execution is typical of in-memory payload staging."
+    legitimate: "JIT engines and runtimes (browsers, .NET, Java) allocate and protect executable memory."
+    mitre: [T1055, T1027]
+
+  - id: HEUR-INJ-005
+    name: Reflective loading indicators
+    category: injection
+    severity: high
+    confidence: 0.7
+    conditions:
+      any:
+        - evidence_any: [pe_reflective_loader_export]
+        - strings_any: ["reflectiveloader", "invoke-reflectivepeinjection", "[system.reflection.assembly]::load(", "assembly.load(", "loadfrombytes"]
+    explanation: "Code loads a PE/assembly directly from memory without touching disk."
+    legitimate: ".NET plugin hosts load assemblies from bytes."
+    mitre: [T1620]
+
+  - id: HEUR-INJ-006
+    name: DLL injection via LoadLibrary in remote process
+    category: injection
+    severity: medium
+    confidence: 0.55
+    applies_to: [pe]
+    conditions:
+      all:
+        - imports_any: [CreateRemoteThread, NtCreateThreadEx, RtlCreateUserThread]
+        - imports_any: [OpenProcess, NtOpenProcess]
+        - strings_any: ["loadlibrarya", "loadlibraryw"]
+    explanation: "Creating a remote thread whose start routine is LoadLibrary forces another process to load a DLL."
+    legitimate: "Classic technique for mods, overlays and debugging tools."
+    mitre: [T1055.001]

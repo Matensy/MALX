@@ -1,0 +1,171 @@
+rules:
+  - id: HEUR-MOB-001
+    name: SMS interception / fraud capability
+    category: mobile
+    severity: high
+    confidence: 0.65
+    applies_to: [apk]
+    conditions:
+      all:
+        - tags_any: ["perm:RECEIVE_SMS", "perm:READ_SMS"]
+        - any:
+            - tags_any: ["perm:SEND_SMS", "perm:INTERNET"]
+            - evidence_any: [android_accessibility_service, android_device_admin]
+    explanation: "The app can read/receive SMS and send data or SMS out — the OTP-stealing and premium-SMS fraud pattern."
+    legitimate: "SMS clients and backup apps."
+    mitre: [T1636.004, T1582]
+
+  - id: HEUR-MOB-002
+    name: Accessibility-driven overlay trojan pattern
+    category: mobile
+    severity: high
+    confidence: 0.65
+    applies_to: [apk]
+    conditions:
+      all:
+        - evidence_any: [android_accessibility_service]
+        - any:
+            - tags_any: ["perm:SYSTEM_ALERT_WINDOW", "perm:QUERY_ALL_PACKAGES", "perm:PACKAGE_USAGE_STATS"]
+            - evidence_any: [android_device_admin]
+    explanation: "Accessibility control combined with overlays/app enumeration or device admin is the toolkit of Android banking trojans."
+    legitimate: "Assistive and automation apps."
+    mitre: [T1626.001]
+
+  - id: HEUR-MOB-003
+    name: Runtime code loading in APK
+    category: mobile
+    severity: medium
+    confidence: 0.55
+    conditions:
+      all:
+        - any:
+            - strings_any: ["ldalvik/system/dexclassloader;", "ldalvik/system/inmemorydexclassloader;"]
+            - evidence_any: [dex_api_reference]
+        - any:
+            - strings_any: [".dex", ".jar", ".apk", "assets/", "loaddex"]
+            - tags_any: ["perm:REQUEST_INSTALL_PACKAGES"]
+    explanation: "The app loads additional code at runtime, which can deliver functionality not present at install time."
+    legitimate: "Plugin frameworks, A/B testing SDKs, and some protectors."
+    mitre: [T1407]
+
+  - id: HEUR-MOB-004
+    name: Boot persistence with background capabilities
+    category: mobile
+    severity: low
+    confidence: 0.45
+    applies_to: [apk]
+    conditions:
+      all:
+        - tags_any: [boot_receiver]
+        - tags_any: ["perm:RECEIVE_BOOT_COMPLETED"]
+        - tags_any: ["perm:REQUEST_IGNORE_BATTERY_OPTIMIZATIONS", "perm:FOREGROUND_SERVICE", "perm:BIND_NOTIFICATION_LISTENER_SERVICE"]
+    explanation: "Starts at boot and keeps itself running in the background."
+    legitimate: "Messaging, VPN and fitness apps."
+    mitre: [T1624.001]
+
+  - id: HEUR-MOB-005
+    name: Notification interception
+    category: mobile
+    severity: medium
+    confidence: 0.5
+    applies_to: [apk]
+    conditions:
+      tags_any: ["perm:BIND_NOTIFICATION_LISTENER_SERVICE"]
+    explanation: "Reads every notification, including one-time passcodes."
+    legitimate: "Wearable companions and notification managers."
+    mitre: [T1517]
+
+  - id: HEUR-LNX-001
+    name: Unix reverse shell
+    category: network
+    severity: high
+    confidence: 0.75
+    conditions:
+      string_tags_any: [reverse_shell]
+    explanation: "Reverse-shell one-liners connect a shell to a remote host."
+    legitimate: "Penetration-testing tools and CTF material."
+    mitre: [T1059.004]
+
+  - id: HEUR-LNX-002
+    name: Statically linked, stripped network binary
+    category: structure
+    severity: low
+    confidence: 0.4
+    applies_to: [elf]
+    conditions:
+      all:
+        - tags_all: [static, stripped]
+        - any:
+            - ioc_any: [ipv4, url, domain]
+            - strings_any: ["/bin/busybox", "/proc/net/tcp", "/dev/watchdog"]
+    explanation: "Static, stripped ELF binaries with network indicators are typical of IoT bots (also of Go/Rust tooling)."
+    legitimate: "Go and Rust produce static binaries; embedded firmware tools are stripped."
+    mitre: []
+
+  - id: HEUR-LNX-003
+    name: Download-and-execute shell chain
+    category: execution
+    severity: high
+    confidence: 0.65
+    conditions:
+      all:
+        - strings_regex: '(?i)(curl|wget|tftp|ftpget)\s+[^|;]{1,200}(\|\s*(ba|z|da)?sh\b|;\s*chmod\s+(\+x|[0-7]{3,4})|&&\s*chmod\s+(\+x|[0-7]{3,4}))'
+    explanation: "Downloads content and pipes it to a shell or marks it executable."
+    legitimate: "Installers piped from curl (a widespread but risky practice)."
+    mitre: [T1105, T1059.004]
+
+  - id: HEUR-LNX-004
+    name: Process name masquerading
+    category: defense_evasion
+    severity: medium
+    confidence: 0.5
+    applies_to: [elf]
+    conditions:
+      all:
+        - imports_any: [prctl]
+        - strings_any: ["[kworker", "[kthreadd", "/usr/sbin/sshd", "[ksoftirqd", "[migration", "systemd-journald", "dbus-daemon"]
+    explanation: "The binary renames itself to look like a kernel thread or system daemon."
+    legitimate: "Daemons legitimately set their own process titles."
+    mitre: [T1036]
+
+  - id: HEUR-SCR-001
+    name: Obfuscated script with payload decoding
+    category: packing
+    severity: medium
+    confidence: 0.6
+    applies_to: [script]
+    conditions:
+      all:
+        - evidence_any: [script_obfuscation]
+        - any:
+            - evidence_any: [encoded_embedded_payload, powershell_encoded_command_decoded]
+            - string_tags_any: [obfuscation_functions, base64_pe]
+    explanation: "The script is obfuscated and decodes data at runtime."
+    legitimate: "Minifiers and packers for web code."
+    mitre: [T1027, T1140]
+
+  - id: HEUR-SCR-002
+    name: PHP webshell behaviour
+    category: execution
+    severity: high
+    confidence: 0.7
+    conditions:
+      all:
+        - strings_any: ["<?php", "<?="]
+        - strings_regex: '(?i)(eval|assert|system|passthru|shell_exec|popen|proc_open|exec)\s*\(\s*(@?\$_(post|get|request|cookie|server)|base64_decode\s*\(\s*\$_)'
+    explanation: "PHP code executes or evaluates request parameters directly — webshell behaviour."
+    legitimate: "None in production code."
+    mitre: [T1505.003]
+
+  - id: HEUR-SCR-003
+    name: Embedded encoded executable
+    category: packing
+    severity: high
+    confidence: 0.75
+    conditions:
+      any:
+        - string_tags_any: [base64_pe, hex_pe]
+        - evidence_any: [encoded_embedded_payload]
+    explanation: "An executable is embedded as base64/hex text and decoded at runtime."
+    legitimate: "Installers written as scripts occasionally embed binaries."
+    mitre: [T1027, T1140]
