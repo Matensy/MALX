@@ -347,9 +347,10 @@ def _identify_text(head: bytes, enc: str, ext: str, name: str, details: dict) ->
         return "source", f"{lang} source code", "source", "text/x-source", 0.75
     # Content-based script guesses for extension-less / renamed text files
     scores = {
-        "powershell": sum(low.count(k) for k in ("invoke-expression", "iex ", "new-object", "$env:", "-executionpolicy", "[convert]::", "write-host", "get-")),
+        "powershell": sum(low.count(k) for k in ("invoke-expression", "iex ", "new-object", "$env:", "-executionpolicy", "[convert]::",
+                                                  "write-host", "get-", "powershell", "-encodedcommand", "-windowstyle", "-noprofile")),
         "vbscript": sum(low.count(k) for k in ("createobject(", "wscript.", "dim ", "end sub", "end function", "on error resume next")),
-        "batch": sum(low.count(k) for k in ("@echo off", "\nset ", "goto ", "%~dp0", "\nrem ", "errorlevel")),
+        "batch": sum(low.count(k) for k in ("@echo off", "\nset ", "goto ", "%~dp0", "\nrem ", "errorlevel", "reg add ", "schtasks ", "cmd /c")),
         "javascript": sum(low.count(k) for k in ("function(", "function ", "var ", "activexobject", "document.", "=> {", "eval(")),
         "python": sum(low.count(k) for k in ("import ", "def ", "print(", "__name__", "self.")),
         "shell": sum(low.count(k) for k in ("#!/bin/", "chmod +x", "wget ", "curl ", "fi\n", "then\n", "/dev/null")),

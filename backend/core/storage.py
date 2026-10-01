@@ -127,6 +127,15 @@ class Storage:
         harden_file(target)
         return StoredUpload(internal_name=name, path=target, size=size, sha256=digest.hexdigest())
 
+    def purge_area(self, analysis_id: str, areas: tuple[str, ...]) -> None:
+        for area in areas:
+            try:
+                path = self.area_dir(area, analysis_id)
+            except ValueError:
+                continue
+            if path.exists():
+                _force_rmtree(path)
+
     def purge_analysis(self, analysis_id: str) -> None:
         for area in self.AREAS:
             try:

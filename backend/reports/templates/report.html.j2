@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MALX Report — {{ m.analysis.name }}</title>
+<style>
+  :root { --bg:#0b0f14; --panel:#121821; --line:#223042; --text:#d7e1ec; --muted:#8aa0b6; --accent:#38bdf8;
+          --critical:#f43f5e; --high:#fb923c; --medium:#facc15; --low:#60a5fa; --info:#94a3b8; }
+  @media print { :root { --bg:#fff; --panel:#fff; --line:#ccc; --text:#111; --muted:#555; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:32px 20px 80px; }
+  h1 { font-size:26px; margin:0 0 4px; } h2 { font-size:19px; margin:36px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  h3 { font-size:15px; margin:18px 0 8px; }
+  .muted { color:var(--muted); } code, .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px; word-break:break-all; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin:12px 0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .kpi .v { font-size:24px; font-weight:700; } .kpi .l { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.06em; }
+  table { width:100%; border-collapse:collapse; margin:8px 0; } th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .sev { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; color:#0b0f14; }
+  .sev-critical{background:var(--critical)} .sev-high{background:var(--high)} .sev-medium{background:var(--medium)} .sev-low{background:var(--low)} .sev-info{background:var(--info)}
+  .chain { display:flex; flex-wrap:wrap; gap:6px; align-items:center; } .chain span.step { background:var(--panel); border:1px solid var(--line); padding:6px 10px; border-radius:8px; }
+  .bar { height:8px; background:var(--line); border-radius:4px; overflow:hidden; } .bar > i { display:block; height:100%; background:var(--accent); }
+  dl.q { display:grid; grid-template-columns:110px 1fr; gap:4px 12px; margin:8px 0 0; } dl.q dt { color:var(--muted); font-weight:600; }
+  .warn { color:var(--high); font-weight:600; }
+  footer { margin-top:48px; color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<main>
+{% set a = m.analysis %}{% set s = a.summary or {} %}
+<h1>MALX Report — {{ a.name }}</h1>
+<div class="muted">Analysis <code>{{ a.id }}</code> · generated {{ m.generated_at }} · {{ m.generator }}</div>
+<div class="panel muted">{{ m.disclaimer }} YOUR FILES STAY LOCAL.</div>
+
+<h2>Executive Summary</h2>
+<div class="grid">
+  <div class="panel kpi"><div class="l">Classification</div><div class="v">{{ (a.classification or 'UNKNOWN') | replace('_', ' ') }}</div><div class="muted">{{ s.classification_reason }}</div></div>
+  <div class="panel kpi"><div class="l">Risk score</div><div class="v">{{ a.risk_score }}/100</div><div class="muted">operational summary</div></div>
+  <div class="panel kpi"><div class="l">Findings</div><div class="v">{{ m.findings | length }}</div><div class="muted">{{ s.strong or 0 }} strong · {{ s.needs_review or 0 }} need review</div></div>
+  <div class="panel kpi"><div class="l">Evidence</div><div class="v">{{ m.evidence | length }}</div><div class="muted">{{ a.artifact_count }} artifact(s)</div></div>
+</div>
+<div class="panel">
+  <strong>MALX INVESTIGATION</strong>
+  <ul>{% for line in s.narrative or [] %}<li>{{ line }}</li>{% endfor %}</ul>
+  <div class="chain">{% for c in s.chain or [] %}<span class="step"><strong>{{ c.count }}</strong> {{ c.label }}</span>{% if not loop.last %}<span class="muted">→</span>{% endif %}{% endfor %}</div>
+</div>
+
+<h2>Sample Information</h2>
+<table><tr><th>Artifact</th><th>Type</th><th>Size</th><th>SHA-256</th><th>Entropy</th></tr>
+{% for x in m.artifacts %}<tr><td><code>{{ x.path_in_archive or x.name }}</code>{% if x.extension_mismatch %} <span class="warn">⚠ EXTENSION MISMATCH</span>{% endif %}</td><td>{{ x.type_label }}</td><td>{{ x.size }}</td><td><code>{{ x.sha256 }}</code></td><td>{{ x.entropy }}</td></tr>{% endfor %}
+</table>
+
+<h2>Hashes</h2>
+{% for x in m.artifacts[:50] %}<div class="panel"><strong>{{ x.name }}</strong><table>
+{% for k, v in x.hashes.items() if v %}<tr><th style="width:110px">{{ k | upper }}</th><td><code>{{ v }}</code></td></tr>{% endfor %}</table></div>{% endfor %}
+
+<h2>File Type</h2>
+<table><tr><th>Artifact</th><th>Detected</th><th>Confidence</th><th>Parser</th><th>Extension</th><th>Magic</th></tr>
+{% for x in m.artifacts %}{% set i = x.identification %}<tr><td><code>{{ x.name }}</code></td><td>{{ i.label }}{% if i.extension_mismatch %}<div class="warn">{{ i.mismatch_reason }}</div>{% endif %}</td><td>{{ i.confidence }}</td><td>{{ i.parser }}</td><td><code>{{ i.extension }}</code></td><td><code>{{ i.magic_hex }}</code></td></tr>{% endfor %}
+</table>
+
+<h2>Risk Summary</h2>
+<div class="panel">
+<table><tr><th>Dimension</th><th style="width:40%">Score</th><th>Reasons</th></tr>
+{% for key, d in ((a.risk or {}).dimensions or {}).items() %}<tr><td>{{ d.label }}</td><td><div class="bar"><i style="width:{{ d.score }}%"></i></div>{{ d.score }}</td><td>{% for r in d.reasons[:3] %}<div>{{ r.ref }} — {{ r.title }}</div>{% endfor %}</td></tr>{% endfor %}
+</table><div class="muted">{{ (a.risk or {}).note }}</div></div>
+
+<h2>Findings</h2>
+{% for f in m.findings %}
+<div class="panel">
+  <div><span class="sev sev-{{ f.severity }}">{{ f.severity }}</span> <strong>{{ f.id }} — {{ f.title }}</strong> <span class="muted">{{ f.kind }} · {{ f.strength }}{% if f.needs_review %} · needs manual review{% endif %}</span></div>
+  <dl class="q">
+    <dt>What?</dt><dd>{{ f.what }}</dd>
+    <dt>Where?</dt><dd>{% for w in f.where[:10] %}<code>{{ w }}</code>{% if not loop.last %}, {% endif %}{% else %}analysis{% endfor %}</dd>
+    <dt>Why?</dt><dd>{{ f.why }}</dd>
+    <dt>Evidence?</dt><dd>{% for e in f.evidence[:15] %}<div>{{ e.id }} <span class="sev sev-{{ e.severity }}">{{ e.severity }}</span> {{ e.title }} <span class="muted">({{ e.role }}, {{ e.source_label }})</span></div>{% endfor %}</dd>
+    <dt>Confidence?</dt><dd>{{ '%.0f' | format(f.confidence * 100) }}%</dd>
+    <dt>Limitations?</dt><dd>{% for l in f.limitations[:5] %}<div>{{ l }}</div>{% endfor %}</dd>
+    {% if f.mitre %}<dt>MITRE</dt><dd>{{ f.mitre | join(', ') }}</dd>{% endif %}
+    {% if f.cwe %}<dt>CWE</dt><dd>{{ f.cwe }}</dd>{% endif %}
+    {% if f.recommendation %}<dt>Action</dt><dd>{{ f.recommendation }}</dd>{% endif %}
+  </dl>
+</div>
+{% else %}<div class="panel muted">No findings.</div>{% endfor %}
+
+<h2>MITRE ATT&amp;CK</h2>
+<table><tr><th>Technique</th><th>Tactics</th><th>Confidence</th><th>Evidence</th><th>Reason</th></tr>
+{% for t in m.mitre %}<tr><td><strong>{{ t.technique_id }}</strong><div class="muted">{{ t.name }}</div></td><td>{{ t.tactics | join(', ') }}</td><td>{{ '%.0f' | format(t.confidence * 100) }}%</td><td>{{ t.evidence[:8] | join(', ') }}</td><td>{{ t.reason }}</td></tr>{% else %}<tr><td colspan="5" class="muted">No technique mapped (mapping requires supporting evidence).</td></tr>{% endfor %}
+</table>
+
+<h2>Heuristics</h2>
+<table><tr><th>ID</th><th>Rule</th><th>Severity</th><th>Matched</th></tr>
+{% for e in m.evidence if e.source == 'heuristic_engine' %}<tr><td>{{ e.id }}</td><td>{{ e.rule_id }} — {{ e.title }}</td><td><span class="sev sev-{{ e.severity }}">{{ e.severity }}</span></td><td class="mono">{{ e.value }}</td></tr>{% else %}<tr><td colspan="4" class="muted">No heuristic matched.</td></tr>{% endfor %}
+</table>
+
+<h2>YARA</h2>
+<table><tr><th>Rule</th><th>Severity</th><th>Description</th><th>Matched strings</th></tr>
+{% for y in m.yara %}<tr><td><code>{{ y.rule }}</code><div class="muted">{{ y.author }}</div></td><td><span class="sev sev-{{ y.severity }}">{{ y.severity }}</span></td><td>{{ y.description }}<div class="muted mono">{{ y.reference }}</div></td><td class="mono">{% for st in y.strings[:6] %}<div>{{ st.identifier }} @{{ st.offset }}: {{ st.data }}</div>{% endfor %}</td></tr>{% else %}<tr><td colspan="4" class="muted">No YARA rule matched.</td></tr>{% endfor %}
+</table>
+
+<h2>Strings</h2>
+<table><tr><th>ID</th><th>Signature</th><th>Example</th></tr>
+{% for e in m.evidence if e.type == 'string_signature' %}<tr><td>{{ e.id }}</td><td>{{ e.title }}</td><td class="mono">{{ e.value }}</td></tr>{% else %}<tr><td colspan="3" class="muted">No suspicious string signature.</td></tr>{% endfor %}
+</table>
+
+<h2>Imports &amp; Resources</h2>
+{% for x in m.artifacts %}{% set pe = x.metadata.pe %}{% if pe and pe.sections %}
+<div class="panel"><h3>{{ x.name }}</h3>
+<table><tr><th>Section</th><th>Perms</th><th>Raw size</th><th>Entropy</th></tr>{% for sec in pe.sections %}<tr><td><code>{{ sec.name }}</code></td><td>{{ sec.permissions }}</td><td>{{ sec.raw_size }}</td><td>{{ sec.entropy }}</td></tr>{% endfor %}</table>
+{% for imp in pe.imports[:40] %}<div><code>{{ imp.dll }}</code>: <span class="mono muted">{{ imp.functions[:40] | join(', ') }}</span></div>{% endfor %}
+{% if pe.resources %}<h3>Resources</h3><table><tr><th>Type</th><th>Name</th><th>Size</th><th>Entropy</th><th>Content</th></tr>{% for r in pe.resources[:60] %}<tr><td>{{ r.type }}</td><td><code>{{ r.name }}</code></td><td>{{ r.size }}</td><td>{{ r.entropy }}</td><td>{{ r.magic or '' }}</td></tr>{% endfor %}</table>{% endif %}
+</div>{% endif %}{% endfor %}
+
+<h2>Reverse Engineering</h2>
+{% for aid, r in m.reverse.items() %}<div class="panel"><strong>{{ r.function_count }} functions</strong> <span class="muted">{{ r.engine }} · {{ r.arch }}</span>
+<table><tr><th>Function</th><th>Imports referenced</th><th>Callers</th></tr>{% for f in r.functions[:25] %}<tr><td><code>{{ f.name }}</code> <span class="muted">{{ f.address }}</span></td><td class="mono">{{ f.imports[:10] | join(', ') }}</td><td class="mono">{{ f.callers[:5] | join(', ') }}</td></tr>{% endfor %}</table></div>
+{% else %}<div class="panel muted">No native code disassembled.</div>{% endfor %}
+
+<h2>IOCs</h2>
+<table><tr><th>Type</th><th>Value</th><th>Evidence</th></tr>
+{% for i in m.iocs[:2000] %}<tr><td>{{ i.type }}</td><td class="mono">{{ i.value }}{% if i.common %} <span class="muted">(common reference)</span>{% endif %}</td><td>{{ i.evidence_ref or '' }}</td></tr>{% else %}<tr><td colspan="3" class="muted">No IOC extracted.</td></tr>{% endfor %}
+</table>
+
+{% if m.appsec %}{% set ap = m.appsec %}
+<h2>Application Security</h2>
+<div class="grid">
+  <div class="panel kpi"><div class="l">Languages</div><div>{% for l in ap.languages %}{{ l.language }} ({{ l.files }}){% if not loop.last %}, {% endif %}{% endfor %}</div></div>
+  <div class="panel kpi"><div class="l">Frameworks</div><div>{{ ap.frameworks | join(', ') or '—' }}</div></div>
+  <div class="panel kpi"><div class="l">Dependencies</div><div class="v">{{ ap.dependencies | length }}</div><div class="muted">{{ ap.vulnerabilities | length }} vulnerable</div></div>
+  <div class="panel kpi"><div class="l">Endpoints</div><div class="v">{{ ap.endpoints | length }}</div></div>
+</div>
+<h3>Attack surface</h3>
+<table><tr><th>Element</th><th>Risk indicators</th><th>Dependencies</th><th>Potential attack paths</th></tr>
+{% for n in (ap.attack_surface or {}).nodes or [] if n.type == 'surface' %}<tr><td><strong>{{ n.label }}</strong></td><td>{{ n.risk | join('; ') }}</td><td class="mono">{{ n.dependencies | join(', ') }}</td><td>{% for p in n.paths %}<div>{{ p }}</div>{% endfor %}</td></tr>{% endfor %}
+</table>
+<h3>Secrets (masked)</h3>
+<table><tr><th>Type</th><th>Location</th><th>Value</th></tr>{% for sc in ap.secrets or [] %}<tr><td>{{ sc.title }}</td><td class="mono">{{ sc.location }}</td><td class="mono">{{ sc.masked }}</td></tr>{% else %}<tr><td colspan="3" class="muted">None detected.</td></tr>{% endfor %}</table>
+{% endif %}
+
+<h2>Evidence</h2>
+<table><tr><th>ID</th><th>Severity</th><th>Source</th><th>Title</th><th>Value</th><th>Conf.</th></tr>
+{% for e in m.evidence[:3000] %}<tr><td>{{ e.id }}</td><td><span class="sev sev-{{ e.severity }}">{{ e.severity }}</span></td><td>{{ e.source_label }}</td><td>{{ e.title }}</td><td class="mono">{{ (e.value or '')[:160] }}</td><td>{{ e.confidence }}</td></tr>{% endfor %}
+</table>
+
+<h2>Recommendations</h2>
+<ul>{% for r in m.recommendations %}<li>{{ r }}</li>{% else %}<li>No specific recommendation: review the findings.</li>{% endfor %}</ul>
+
+<h2>Technical Appendix</h2>
+<h3>Limitations</h3>
+<ul>{% for l in a.limitations %}<li>{{ l }}</li>{% else %}<li class="muted">None recorded.</li>{% endfor %}</ul>
+<h3>Timeline</h3>
+<table><tr><th>Time</th><th>Lane</th><th>Event</th><th>Engine</th></tr>{% for t in m.timeline[:400] %}<tr><td class="mono">{{ t.ts }}</td><td>{{ t.lane }}</td><td>{{ t.event }}</td><td>{{ t.engine or '' }}</td></tr>{% endfor %}</table>
+<h3>Engines</h3>
+<pre class="panel mono">{{ a.engines | tojson(indent=2) }}</pre>
+<footer>Generated by MALX — evidence-first static analysis. No sample was executed.</footer>
+</main>
+</body>
+</html>
